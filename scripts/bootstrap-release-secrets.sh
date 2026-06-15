@@ -9,8 +9,6 @@
 # Connect .p8 + IDs, and optional Homebrew PAT). Re-running is safe — it
 # replaces existing secrets in place without leaving orphans.
 #
-# Prefer the 1Password flow? See scripts/push-secrets-from-1password.sh.
-#
 # Usage:
 #   ./scripts/bootstrap-release-secrets.sh             # interactive
 #   ./scripts/bootstrap-release-secrets.sh --skip-homebrew

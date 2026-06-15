@@ -4,11 +4,9 @@ This is the prerequisite to running the secret-provisioning scripts. It walks yo
 in order, through producing every artifact the release workflow
 (`.github/workflows/release.yml`) needs.
 
-You only need to do this once per machine. There are two ways to load the secrets
-into GitHub once you have the artifacts:
+You only need to do this once per machine. Once you have the artifacts, load them
+into GitHub with:
 
-- **`scripts/push-secrets-from-1password.sh`** — if you keep the artifacts in
-  1Password. Edit the `op://` references at the top, then run it.
 - **`scripts/bootstrap-release-secrets.sh`** — interactive; reads files/IDs from
   disk and pushes them with `gh`. It can also generate the Sparkle key.
 
@@ -133,10 +131,7 @@ Lets the workflow auto-update a `hiddenbaricons` cask in your tap (e.g.
 ## Run it
 
 ```sh
-# Option A — from 1Password (edit the op:// refs at the top first):
-./scripts/push-secrets-from-1password.sh
-
-# Option B — interactive, from files:
+# Interactive, from files:
 ./scripts/bootstrap-release-secrets.sh           # or --skip-homebrew
 ```
 

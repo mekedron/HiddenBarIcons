@@ -87,14 +87,9 @@ The workflow consumes these GitHub Actions secrets:
 | `SPARKLE_PRIVATE_KEY` | base64 of your Sparkle Ed25519 private seed |
 | `HOMEBREW_TAP_TOKEN` | *(optional)* PAT to auto-update a Homebrew cask |
 
-Two ways to populate them — see [`docs/release-setup.md`](docs/release-setup.md):
+Populate them — see [`docs/release-setup.md`](docs/release-setup.md):
 
-- **From 1Password** (you already keep the secrets there):
-  edit the `op://` references at the top of
-  [`scripts/push-secrets-from-1password.sh`](scripts/push-secrets-from-1password.sh)
-  and run it. One `op read` → `gh secret set` line per secret.
-- **From scratch / interactively:**
-  [`scripts/bootstrap-release-secrets.sh`](scripts/bootstrap-release-secrets.sh)
+- [`scripts/bootstrap-release-secrets.sh`](scripts/bootstrap-release-secrets.sh)
   walks you through every artifact and pushes them with `gh`.
 
 > The `SUPublicEDKey` in [`HiddenBarIcons/Resources/Info.plist`](HiddenBarIcons/Resources/Info.plist)
