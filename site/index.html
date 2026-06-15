@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HiddenBarIcons — Reclaim your Mac menu bar from the notch</title>
+<meta name="description" content="HiddenBarIcons is a tiny, free macOS menu-bar app that fixes the MacBook notch problem. Hide overflow icons behind the notch and reveal them with one click or ⌘⌥B. macOS 14+, Universal, auto-updating.">
+<meta name="keywords" content="macOS menu bar, MacBook notch, hide menu bar icons, menu bar manager, notch fix, hidden bar, macOS utility, menu bar app">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#6E56F0">
+<meta property="og:type" content="website">
+<meta property="og:title" content="HiddenBarIcons — Reclaim your Mac menu bar from the notch">
+<meta property="og:description" content="A tiny free macOS app that hides the menu-bar icons swallowed by the MacBook notch — and brings them back with one click or ⌘⌥B.">
+<meta property="og:image" content="https://mekedron.github.io/HiddenBarIcons/assets/appicon.png">
+<meta property="og:url" content="https://mekedron.github.io/HiddenBarIcons/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="HiddenBarIcons — Reclaim your Mac menu bar from the notch">
+<meta name="twitter:description" content="A tiny free macOS app that hides menu-bar icons behind the notch and reveals them with one click or ⌘⌥B.">
+<meta name="twitter:image" content="https://mekedron.github.io/HiddenBarIcons/assets/appicon.png">
+<link rel="canonical" href="https://mekedron.github.io/HiddenBarIcons/">
+<link rel="icon" type="image/png" href="assets/appicon-256.png">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"HiddenBarIcons","applicationCategory":"UtilitiesApplication","operatingSystem":"macOS 14.0 or later","description":"A tiny macOS menu-bar app that hides the icons swallowed by the MacBook notch and reveals them with one click or the ⌘⌥B hotkey.","url":"https://mekedron.github.io/HiddenBarIcons/","downloadUrl":"https://github.com/mekedron/HiddenBarIcons/releases/latest","license":"https://opensource.org/licenses/MIT","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
+</script>
+<style>
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 92px; -webkit-text-size-adjust: 100%; }
+  :root {
+    --bg:#FBFBFD; --text:#1D1D1F; --muted:rgba(0,0,0,0.56); --faint:rgba(0,0,0,0.40);
+    --glass:rgba(255,255,255,0.55); --glass-strong:rgba(255,255,255,0.72);
+    --border:rgba(0,0,0,0.08); --hairline:rgba(0,0,0,0.07); --highlight:rgba(255,255,255,0.8);
+    --shadow:0 24px 70px rgba(40,28,90,0.13); --code-bg:rgba(0,0,0,0.045);
+    --grad1:rgba(110,86,240,0.13); --grad2:rgba(110,86,240,0.05); --grad3:rgba(60,40,200,0.05);
+    --accent:#6E56F0; --accent-2:#5B3FE0; --on-accent:#ffffff;
+  }
+  :root[data-theme="dark"] {
+    --bg:#07070B; --text:#F5F5F7; --muted:rgba(255,255,255,0.62); --faint:rgba(255,255,255,0.40);
+    --glass:rgba(255,255,255,0.055); --glass-strong:rgba(20,18,32,0.62);
+    --border:rgba(255,255,255,0.12); --hairline:rgba(255,255,255,0.09); --highlight:rgba(255,255,255,0.18);
+    --shadow:0 30px 90px rgba(0,0,0,0.6); --code-bg:rgba(255,255,255,0.06);
+    --grad1:rgba(124,102,255,0.26); --grad2:rgba(124,102,255,0.07); --grad3:rgba(80,50,230,0.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:#07070B; --text:#F5F5F7; --muted:rgba(255,255,255,0.62); --faint:rgba(255,255,255,0.40);
+      --glass:rgba(255,255,255,0.055); --glass-strong:rgba(20,18,32,0.62);
+      --border:rgba(255,255,255,0.12); --hairline:rgba(255,255,255,0.09); --highlight:rgba(255,255,255,0.18);
+      --shadow:0 30px 90px rgba(0,0,0,0.6); --code-bg:rgba(255,255,255,0.06);
+      --grad1:rgba(124,102,255,0.26); --grad2:rgba(124,102,255,0.07); --grad3:rgba(80,50,230,0.10);
+    }
+  }
+  body { margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; line-height:1.5;
+    transition:background .5s ease, color .4s ease; }
+  ::selection { background:var(--accent); color:#fff; }
+  a { color:inherit; }
+  @keyframes hbiFloat { 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-14px) } }
+  @keyframes hbiGlow { 0%,100%{ opacity:.85; transform:scale(1) } 50%{ opacity:1; transform:scale(1.06) } }
+  @media (prefers-reduced-motion: reduce) { *{ animation:none !important } }
+</style>
+<script>
+  /* Apply a previously-chosen theme before first paint to avoid a flash. */
+  (function () {
+    try {
+      var t = localStorage.getItem('hbi-theme');
+      if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  })();
+</script>
+</head>
+<body>
+
+<div id="hbi-root" style="position:relative; background:var(--bg); color:var(--text); min-height:100vh; transition:background .5s ease;">
+<div style="position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none; background:var(--bg); transition:background .5s ease;">
+  <div style="position:absolute; top:-18%; left:50%; transform:translateX(-50%); width:120vw; height:80vh; background:radial-gradient(50% 50% at 50% 0%, var(--grad1), transparent 70%); animation:hbiGlow 11s ease-in-out infinite;"></div>
+  <div style="position:absolute; bottom:-10%; left:-8%; width:55vw; height:55vw; border-radius:50%; background:radial-gradient(circle, var(--grad3), transparent 65%); filter:blur(20px);"></div>
+  <div style="position:absolute; top:38%; right:-12%; width:46vw; height:46vw; border-radius:50%; background:radial-gradient(circle, var(--grad2), transparent 65%); filter:blur(10px);"></div>
+</div>
+
+<main style="position:relative; z-index:1;">
+
+  <!-- ============ NAV ============ -->
+  <nav style="position:sticky; top:0; z-index:50; backdrop-filter:blur(22px) saturate(180%); -webkit-backdrop-filter:blur(22px) saturate(180%); background:var(--glass-strong); border-bottom:1px solid var(--hairline);">
+    <div style="max-width:1120px; margin:0 auto; padding:13px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px;">
+      <a href="#top" style="display:flex; align-items:center; gap:11px; text-decoration:none; color:var(--text);">
+        <img src="assets/appicon.png" alt="HiddenBarIcons app icon" width="34" height="34" style="border-radius:9px; display:block; box-shadow:0 2px 8px rgba(80,50,230,0.3);">
+        <span style="font-size:17px; font-weight:600; letter-spacing:-0.02em;">HiddenBarIcons</span>
+      </a>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <!-- theme segmented control -->
+        <div style="display:flex; align-items:center; gap:2px; padding:3px; border-radius:980px; background:var(--glass); border:1px solid var(--border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);">
+          <button id="seg-light" type="button" onclick="hbiSetTheme('light')" aria-label="Light theme" title="Light" style="display:flex; align-items:center; justify-content:center; width:30px; height:28px; border:none; border-radius:980px; cursor:pointer; transition:all .25s ease; padding:0; background:transparent; color:var(--muted);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2M12 20v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2 12h2M20 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg>
+          </button>
+          <button id="seg-auto" type="button" onclick="hbiSetTheme('auto')" aria-label="Automatic theme" title="Auto (match system)" style="display:flex; align-items:center; justify-content:center; width:30px; height:28px; border:none; border-radius:980px; cursor:pointer; transition:all .25s ease; padding:0; background:transparent; color:var(--muted);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="12" rx="1.6"/><path d="M2 20h20"/></svg>
+          </button>
+          <button id="seg-dark" type="button" onclick="hbiSetTheme('dark')" aria-label="Dark theme" title="Dark" style="display:flex; align-items:center; justify-content:center; width:30px; height:28px; border:none; border-radius:980px; cursor:pointer; transition:all .25s ease; padding:0; background:transparent; color:var(--muted);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M20 14.5A8 8 0 0 1 9.5 4 7 7 0 1 0 20 14.5z"/></svg>
+          </button>
+        </div>
+        <a href="https://buymeacoffee.com/mekedron" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:7px; padding:8px 16px; border-radius:980px; text-decoration:none; font-size:14px; font-weight:600; color:#1f1a05; background:linear-gradient(180deg,#FFE08A,#FFC83F); border:1px solid rgba(180,130,0,0.28); box-shadow:0 5px 16px rgba(255,190,40,0.32); transition:transform .15s ease;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9h12v4a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5V9z"/><path d="M17 10h2.2a2.3 2.3 0 0 1 0 4.6H17"/><path d="M8 2.5c-.5.8-.5 1.7 0 2.5M11.5 2.5c-.5.8-.5 1.7 0 2.5"/></svg>
+          <span style="white-space:nowrap;">Buy me a coffee</span>
+        </a>
+        <a href="#download" style="display:inline-flex; align-items:center; gap:7px; padding:9px 18px; border-radius:980px; text-decoration:none; font-size:14px; font-weight:600; color:var(--on-accent); background:linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow:0 6px 18px rgba(110,86,240,0.4); transition:transform .15s ease;">Download</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============ HERO ============ -->
+  <header id="top" style="max-width:1120px; margin:0 auto; padding:clamp(56px,9vw,110px) 24px clamp(40px,6vw,72px);">
+    <div style="display:flex; flex-wrap:wrap; gap:clamp(36px,5vw,72px); align-items:center;">
+      <div style="flex:1 1 380px; min-width:300px;">
+        <div style="display:inline-flex; align-items:center; gap:8px; padding:6px 13px 6px 8px; border-radius:980px; background:var(--glass); border:1px solid var(--border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); font-size:13px; font-weight:500; color:var(--muted); margin-bottom:26px;">
+          <span style="display:inline-flex; width:18px; height:18px; border-radius:50%; align-items:center; justify-content:center; background:linear-gradient(180deg, var(--accent), var(--accent-2));">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </span>
+          Free &amp; open source · macOS 14+
+        </div>
+        <h1 style="font-size:clamp(40px,6.2vw,74px); line-height:1.03; letter-spacing:-0.035em; font-weight:700; margin:0 0 22px; text-wrap:balance;">Reclaim your menu bar from the notch.</h1>
+        <p style="font-size:clamp(17px,2.1vw,21px); line-height:1.5; color:var(--muted); margin:0 0 34px; max-width:30ch; text-wrap:pretty;">The MacBook notch swallows your overflow menu-bar icons. <span style="color:var(--text); font-weight:500;">HiddenBarIcons</span> hides them on purpose — and brings every one back with a single click or <kbd style="font:inherit; font-weight:600; padding:1px 7px; border-radius:7px; background:var(--code-bg); border:1px solid var(--border); white-space:nowrap;">⌘⌥B</kbd>.</p>
+        <div style="display:flex; flex-wrap:wrap; gap:13px; align-items:center;">
+          <a href="#download" style="display:inline-flex; align-items:center; gap:9px; padding:15px 28px; border-radius:980px; text-decoration:none; font-size:17px; font-weight:600; color:var(--on-accent); background:linear-gradient(180deg, var(--accent), var(--accent-2)); box-shadow:0 12px 30px rgba(110,86,240,0.42); transition:transform .15s ease;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg>
+            Download for macOS
+          </a>
+          <a href="#download" style="display:inline-flex; align-items:center; gap:8px; padding:15px 24px; border-radius:980px; text-decoration:none; font-size:17px; font-weight:500; color:var(--text); background:var(--glass); border:1px solid var(--border); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); transition:all .2s ease;">See install options</a>
+        </div>
+        <p style="font-size:13.5px; color:var(--faint); margin:22px 0 0; display:flex; flex-wrap:wrap; gap:14px;">
+          <span>Universal · Apple Silicon &amp; Intel</span><span aria-hidden="true">·</span><span>Auto-updates</span><span aria-hidden="true">·</span><span>No Dock icon</span>
+        </p>
+      </div>
+
+      <div style="flex:1 1 360px; min-width:290px; display:flex; justify-content:center; position:relative;">
+        <div style="position:absolute; inset:-6% -4% -10% -4%; background:radial-gradient(55% 55% at 50% 35%, var(--grad1), transparent 70%); filter:blur(8px); z-index:0;"></div>
+        <figure style="position:relative; z-index:1; margin:0; max-width:420px; width:100%;">
+          <div style="border-radius:26px; padding:10px; background:var(--glass); border:1px solid var(--border); box-shadow:var(--shadow); backdrop-filter:blur(24px) saturate(180%); -webkit-backdrop-filter:blur(24px) saturate(180%);">
+            <img src="assets/menu.png" alt="HiddenBarIcons dropdown menu showing the list of menu-bar apps hidden behind the MacBook notch, with Preferences, Hide Notch and Check for Updates options" style="display:block; width:100%; height:auto; border-radius:17px;">
+          </div>
+          <figcaption style="text-align:center; margin-top:16px; font-size:13px; color:var(--faint);">Right-click the arrow → every hidden icon, one click away.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ HOW IT WORKS ============ -->
+  <section id="how" style="max-width:1120px; margin:0 auto; padding:clamp(48px,7vw,90px) 24px;">
+    <div style="text-align:center; max-width:640px; margin:0 auto clamp(34px,5vw,56px);">
+      <div style="font-size:13px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--accent); margin-bottom:14px;">How it works</div>
+      <h2 style="font-size:clamp(30px,4.6vw,46px); line-height:1.08; letter-spacing:-0.03em; font-weight:700; margin:0 0 16px; text-wrap:balance;">Two items. One that hides, one that reveals.</h2>
+      <p style="font-size:clamp(16px,2vw,18px); color:var(--muted); margin:0; text-wrap:pretty;">HiddenBarIcons adds a separator and an arrow to your menu bar. That's the whole interface.</p>
+    </div>
+    <ol style="list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fit, minmax(270px,1fr)); gap:18px; counter-reset:step;">
+      <li style="counter-increment:step; padding:30px 26px; border-radius:24px; background:var(--glass); border:1px solid var(--border); box-shadow:var(--shadow); backdrop-filter:blur(20px) saturate(160%); -webkit-backdrop-filter:blur(20px) saturate(160%);">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <span style="display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:11px; font-weight:700; font-size:15px; color:var(--on-accent); background:linear-gradient(180deg, var(--accent), var(--accent-2));">1</span>
+          <span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:22px; font-weight:600; color:var(--muted);">|</span>
+        </div>
+        <h3 style="font-size:19px; font-weight:600; letter-spacing:-0.02em; margin:0 0 8px;">Set the separator</h3>
+        <p style="font-size:15px; color:var(--muted); margin:0; line-height:1.55; text-wrap:pretty;">⌘-drag the icons you want to tuck away to the <strong style="color:var(--text); font-weight:600;">left</strong> of the separator. Everything else stays put.</p>
+      </li>
+      <li style="counter-increment:step; padding:30px 26px; border-radius:24px; background:var(--glass); border:1px solid var(--border); box-shadow:var(--shadow); backdrop-filter:blur(20px) saturate(160%); -webkit-backdrop-filter:blur(20px) saturate(160%);">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <span style="display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:11px; font-weight:700; font-size:15px; color:var(--on-accent); background:linear-gradient(180deg, var(--accent), var(--accent-2));">2</span>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+        </div>
+        <h3 style="font-size:19px; font-weight:600; letter-spacing:-0.02em; margin:0 0 8px;">Click to collapse</h3>
+        <p style="font-size:15px; color:var(--muted); margin:0; line-height:1.55; text-wrap:pretty;">Click the arrow or press <kbd style="font:inherit; font-weight:600; padding:1px 6px; border-radius:6px; background:var(--code-bg); border:1px solid var(--border);">⌘⌥B</kbd>. The separator stretches and pushes the icons off-screen — behind the notch.</p>
+      </li>
+      <li style="counter-increment:step; padding:30px 26px; border-radius:24px; background:var(--glass); border:1px solid var(--border); box-shadow:var(--shadow); backdrop-filter:blur(20px) saturate(160%); -webkit-backdrop-filter:blur(20px) saturate(160%);">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <span style="display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:11px; font-weight:700; font-size:15px; color:var(--on-accent); background:linear-gradient(180deg, var(--accent), var(--accent-2));">3</span>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg>
+        </div>
+        <h3 style="font-size:19px; font-weight:600; letter-spacing:-0.02em; margin:0 0 8px;">Reach what's hidden</h3>
+        <p style="font-size:15px; color:var(--muted); margin:0; line-height:1.55; text-wrap:pretty;">Right-click the arrow for a live list of the apps now hidden under the notch — click any one to open it instantly.</p>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ============ FEATURES ============ -->
+  <section id="features" style="max-width:1120px; margin:0 auto; padding:clamp(48px,7vw,90px) 24px;">
+    <div style="text-align:center; max-width:640px; margin:0 auto clamp(34px,5vw,56px);">
+      <div style="font-size:13px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:var(--accent); margin-bottom:14px;">Features</div>
+      <h2 style="font-size:clamp(30px,4.6vw,46px); line-height:1.08; letter-spacing:-0.03em; font-weight:700; margin:0; text-wrap:balance;">Small app. Surprisingly thorough.</h2>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:18px;">
+
+      <div style="padding:28px 26px; border-radius:24px; background:var(--glass); border:1px solid var(--border); box-shadow:var(--shadow); backdrop-filter:blur(20px) saturate(160%); -webkit-backdrop-filter:blur(20px) saturate(160%);">
+        <div style="display:inline-flex; align-items:center; justify-content:center; width:46px; height:46px; border-radius:14px; margin-bottom:18px; background:linear-gradient(180deg, var(--accent), var(--accent-2)); color:#fff;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/><path d="M21 4v16"/></svg>
+        </div>
+        <h3 style="font-size:18px; font-weight:600; letter-spacing:-0.02em; margin:0 0 8px;">One-click collapse</h3>
+        <p style="font-size:15px; color:var(--muted); margin:0; line-height:1.55; text-wrap:pretty;">Hide and reveal your overflow icons instantly. No menus, no fuss — just the arrow.</p>
+      </div>
+
+      <div style="padding:28px 26px; border-radius:24px; background:var(--glass); border:1px solid var(--border); box-shadow:var(--shadow); backdrop-filter:blur(20px) saturate(160%); -webkit-backdrop-filter:blur(20px) saturate(160%);">
+        <div style="display:inline-flex; align-items:center; justify-content:center; width:46px; height:46px; border-radius:14px; margin-bottom:18px; background:linear-gradient(180deg, var(--accent), var(--accent-2)); color:#fff;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2.4"/><path d="M6 10h.01M10 10h.01M14 10h.01M7 14h10"/></svg>
+        </div>
+        <h3 style="font-size:18px; font-weight:600; letter-spacing:-0.02em; margin:0 0 8px;">Global ⌘⌥B hotkey</h3>
+        <p style="font-size:15px; color:var(--muted); margin:0; line-height:1.55; text-wrap:pretty;">Toggle from anywhere without reaching for the mouse. Works system-wide, in any app.</p>
+      </div>
+
+      <div style="padding:28px 26px; border-radius:24px; background:var(--glass); border:1px solid var(--border); box-shadow:var(--shadow); backdrop-filter:blur(20px) saturate(160%); -webkit-backdrop-filter:blur(20px) saturate(160%);">
+        <div style="display:inline-flex; align-items:center; justify-content:center; width:46px; height:46px; border-radius:14px; margin-bottom:18px; background:linear-gradient(180deg, var(--accent), var(--accent-2)); color:#fff;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/></svg>
+        </div>
+        <h3 style="font-size:18px; font-weight:600; letter-spacing:-0.02em; margin:0 0 8px;">Auto-collapse</h3>
+        <p style="font-size:15px; color:var(--muted); margin:0; line-height:1.55; text-wrap:pretty;">Tuck the icons away automatically after a delay you choose. A tidy bar that tidies itself.</p>
+      </div>
+
+      <div style="padding:28px 26px; border-radius:24px; background:var(--glass); border:1px solid var(--border); box-shadow:var(--shadow); backdrop-filter:blur(20px) saturate(160%); -webkit-backdrop-filter:blur(20px) saturate(160%);">
+        <div style="display:inline-flex; align-items:center; justify-content:center; width:46px; height:46px; border-radius:14px; margin-bottom:18px; background:linear-gradient(180deg, var(--accent), var(--accent-2)); color:#fff;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16M4 4v16M4 20h16"/><path d="M8 9l-2.5 3L8 15M16 9l2.5 3L16 15"/></svg>
+        </div>
+        <h3 style="font-size:18px; font-weight:600; letter-spacing:-0.02em; margin:0 0 8px;">Full-expand mode</h3>
+        <p style="font-size:15px; color:var(--muted); margin:0; line-height:1.55; text-wrap:pretty;">Temporarily clears the whole bar — handy when you need every pixel of space back.</p>
+      </div>
+
+      <div style="padding:28px 26px; border-radius:24px; background:var(--glass); border:1px solid var(--border); box-shadow:var(--shadow); backdrop-filter:blur(20px) saturate(160%); -webkit-backdrop-filter:blur(20px) saturate(160%);">
+        <div style="display:inline-flex; align-items:center; justify-content:center; width:46px; height:46px; border-radius:14px; margin-bottom:18px; background:linear-gradient(180deg, var(--accent), var(--accent-2)); color:#fff;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H4v5M15 3h5v5M9 21H4v-5M15 21h5v-5"/><path d="M9 7h6v3a3 3 0 0 1-6 0V7z"/></svg>
+        </div>
+        <h3 style="font-size:18px; font-weight:600; letter-spacing:-0.02em; margin:0 0 8px;">Hide / Show Notch</h3>
+        <p style="font-size:15px; color:var(--muted); margin:0; line-height:1.55; text-wrap:pretty;">On notched Macs, switch the display to a clean notchless 16:10 mode in one tap.</p>
+      </div>
+
+      <div style="padding:28px 26px; border-radius:24px; background:var(--glass); border:1px solid var(--border); box-shadow:var(--shadow); backdrop-filter:blur(20px) saturate(160%); -webkit-backdrop-filter:blur(20px) saturate(160%);">
+        <div style="display:inline-flex; align-items:center; justify-content:center; width:46px; height:46px; border-radius:14px; margin-bottom:18px; background:linear-gradient(180deg, var(--accent), var(--accent-2)); color:#fff;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v4h-4"/></svg>
+        </div>
+        <h3 style="font-size:18px; font-weight:600; letter-spacing:-0.02em; margin:0 0 8px;">Always up to date</h3>
+        <p style="font-size:15px; color:var(--muted); margin:0; line-height:1.55; text-wrap:pretty;">Built-in auto-updates via Sparkle. Notarized &amp; code-signed, so it just works.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ DOWNLOAD ============ -->
+  <section id="download" style="max-width:1120px; margin:0 auto; padding:clamp(48px,7vw,96px) 24px clamp(40px,5vw,64px);">
+    <div style="position:relative; border-radius:32px; overflow:hidden; padding:clamp(34px,5vw,64px) clamp(24px,4vw,56px); background:var(--glass); border:1px solid var(--border); box-shadow:var(--shadow); backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%);">
+      <div style="position:absolute; top:-30%; left:50%; transform:translateX(-50%); width:90%; height:70%; background:radial-gradient(50% 50% at 50% 0%, var(--grad1), transparent 70%); pointer-events:none;"></div>
+      <div style="position:relative; text-align:center; max-width:600px; margin:0 auto;">
+        <img src="assets/appicon.png" alt="HiddenBarIcons app icon" width="76" height="76" style="border-radius:19px; box-shadow:0 10px 30px rgba(80,50,230,0.4); margin-bottom:22px;">
+        <h2 style="font-size:clamp(30px,4.6vw,48px); line-height:1.06; letter-spacing:-0.03em; font-weight:700; margin:0 0 14px; text-wrap:balance;">Get HiddenBarIcons</h2>
+        <p style="font-size:clamp(16px,2vw,18px); color:var(--muted); margin:0 0 16px; text-wrap:pretty;">Free, open source, and notarized. Download the disk image or install with Homebrew.</p>
+        <p style="font-size:13.5px; color:var(--faint); margin:0 0 34px; display:flex; flex-wrap:wrap; gap:12px; justify-content:center;">
+          <span>macOS 14 Sonoma or later</span><span aria-hidden="true">·</span><span>Universal (Apple Silicon &amp; Intel)</span><span aria-hidden="true">·</span><span>MIT licensed</span>
+        </p>
+      </div>
+
+      <div style="position:relative; display:grid; grid-template-columns:repeat(auto-fit, minmax(290px,1fr)); gap:18px; max-width:760px; margin:0 auto;">
+        <!-- DMG -->
+        <a href="https://github.com/mekedron/HiddenBarIcons/releases/latest" target="_blank" rel="noopener" style="display:flex; flex-direction:column; gap:6px; text-decoration:none; padding:26px 24px; border-radius:22px; background:var(--glass-strong); border:1px solid var(--border); transition:transform .15s ease;">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+            <span style="display:inline-flex; align-items:center; justify-content:center; width:42px; height:42px; border-radius:12px; color:var(--on-accent); background:linear-gradient(180deg, var(--accent), var(--accent-2));">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg>
+            </span>
+            <span style="font-size:18px; font-weight:600; letter-spacing:-0.02em; color:var(--text);">Download .dmg</span>
+          </div>
+          <span style="font-size:14.5px; color:var(--muted); line-height:1.5;">Grab the latest signed disk image from GitHub Releases. Drag to Applications and you're done.</span>
+          <span style="margin-top:10px; font-size:14px; font-weight:600; color:var(--accent); display:inline-flex; align-items:center; gap:6px;">Latest release
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg>
+          </span>
+        </a>
+        <!-- Homebrew -->
+        <div style="display:flex; flex-direction:column; gap:6px; padding:26px 24px; border-radius:22px; background:var(--glass-strong); border:1px solid var(--border);">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+            <span style="display:inline-flex; align-items:center; justify-content:center; width:42px; height:42px; border-radius:12px; color:var(--on-accent); background:linear-gradient(180deg, var(--accent), var(--accent-2));">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9h12v4a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5V9z"/><path d="M17 10h2.2a2.3 2.3 0 0 1 0 4.6H17"/><path d="M8 2.5c-.5.8-.5 1.7 0 2.5M11.5 2.5c-.5.8-.5 1.7 0 2.5"/></svg>
+            </span>
+            <span style="font-size:18px; font-weight:600; letter-spacing:-0.02em; color:var(--text);">Homebrew</span>
+          </div>
+          <span style="font-size:14.5px; color:var(--muted); line-height:1.5;">Prefer the terminal? Install the cask and get auto-updates with the rest of your apps.</span>
+          <button id="brew-copy-btn" type="button" aria-label="Copy Homebrew install command" style="margin-top:12px; display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; text-align:left; cursor:pointer; padding:12px 14px; border-radius:13px; background:var(--code-bg); border:1px solid var(--border); transition:all .15s ease;">
+            <code style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">brew install --cask mekedron/tap/hiddenbaricons</code>
+            <span style="flex-shrink:0; color:var(--muted); display:inline-flex;">
+              <span id="brew-check-icon" style="display:none; align-items:center;">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </span>
+              <span id="brew-copy-icon" style="display:inline-flex; align-items:center;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2.2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+              </span>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- solo dev + BMC -->
+      <div style="position:relative; margin:clamp(30px,4vw,44px) auto 0; max-width:600px; text-align:center; padding-top:clamp(26px,4vw,38px); border-top:1px solid var(--hairline);">
+        <p style="font-size:15.5px; color:var(--muted); margin:0 0 20px; line-height:1.6; text-wrap:pretty;">This project is built and maintained by <strong style="color:var(--text); font-weight:600;">one solo developer</strong>, in the open, for free. If it earns a permanent spot in your menu bar, a coffee keeps the commits coming. ☕</p>
+        <div style="display:flex; flex-wrap:wrap; gap:12px; justify-content:center;">
+          <a href="https://buymeacoffee.com/mekedron" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:9px; padding:13px 24px; border-radius:980px; text-decoration:none; font-size:16px; font-weight:600; color:#1a1a1a; background:linear-gradient(180deg,#FFE08A,#FFD23F); box-shadow:0 8px 22px rgba(255,200,40,0.35); transition:transform .15s ease;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9h12v4a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5V9z"/><path d="M17 10h2.2a2.3 2.3 0 0 1 0 4.6H17"/><path d="M8 2.5c-.5.8-.5 1.7 0 2.5M11.5 2.5c-.5.8-.5 1.7 0 2.5"/></svg>
+            Buy me a coffee
+          </a>
+          <a href="https://github.com/mekedron/HiddenBarIcons" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:9px; padding:13px 24px; border-radius:980px; text-decoration:none; font-size:16px; font-weight:500; color:var(--text); background:var(--glass); border:1px solid var(--border); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); transition:all .2s ease;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1.5a10.5 10.5 0 0 0-3.32 20.47c.53.1.72-.23.72-.5v-1.8c-2.93.64-3.55-1.41-3.55-1.41-.48-1.22-1.17-1.54-1.17-1.54-.96-.66.07-.64.07-.64 1.06.07 1.62 1.09 1.62 1.09.94 1.62 2.47 1.15 3.07.88.1-.68.37-1.15.67-1.41-2.34-.27-4.8-1.17-4.8-5.2 0-1.15.41-2.09 1.09-2.83-.11-.27-.47-1.34.1-2.8 0 0 .88-.28 2.9 1.08a10 10 0 0 1 5.27 0c2-1.36 2.89-1.08 2.89-1.08.58 1.46.21 2.53.11 2.8.68.74 1.09 1.68 1.09 2.83 0 4.04-2.47 4.93-4.82 5.19.38.33.71.97.71 1.96v2.9c0 .28.19.61.73.5A10.5 10.5 0 0 0 12 1.5z"/></svg>
+            View source
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer style="max-width:1120px; margin:0 auto; padding:30px 24px 56px; border-top:1px solid var(--hairline);">
+    <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <img src="assets/appicon.png" alt="" width="26" height="26" style="border-radius:7px;">
+        <span style="font-size:14px; color:var(--muted);">HiddenBarIcons · MIT licensed · Made for macOS</span>
+      </div>
+      <div style="display:flex; gap:20px; font-size:14px;">
+        <a href="https://github.com/mekedron/HiddenBarIcons" target="_blank" rel="noopener" style="color:var(--muted); text-decoration:none;">GitHub</a>
+        <a href="https://github.com/mekedron/HiddenBarIcons/releases/latest" target="_blank" rel="noopener" style="color:var(--muted); text-decoration:none;">Releases</a>
+        <a href="https://buymeacoffee.com/mekedron" target="_blank" rel="noopener" style="color:var(--muted); text-decoration:none;">Buy me a coffee</a>
+      </div>
+    </div>
+  </footer>
+
+</main>
+</div>
+
+<script>
+  /* Vanilla port of the Claude Design component logic:
+     theme segmented control (light / auto / dark, persisted) + copy-to-clipboard. */
+  (function () {
+    var root = document.documentElement;
+    var STORAGE_KEY = 'hbi-theme';
+
+    var segBase = 'display:flex; align-items:center; justify-content:center; width:30px; height:28px; border:none; border-radius:980px; cursor:pointer; transition:all .25s ease; padding:0;';
+    var segOn = 'background:linear-gradient(180deg, var(--accent), var(--accent-2)); color:var(--on-accent); box-shadow:0 2px 8px rgba(110,86,240,0.45);';
+    var segOff = 'background:transparent; color:var(--muted);';
+    var segs = { light: 'seg-light', auto: 'seg-auto', dark: 'seg-dark' };
+
+    function paintSegs(mode) {
+      for (var key in segs) {
+        var el = document.getElementById(segs[key]);
+        if (el) el.setAttribute('style', segBase + (key === mode ? segOn : segOff));
+      }
+    }
+
+    function applyTheme(mode, persist) {
+      if (mode === 'auto') root.removeAttribute('data-theme');
+      else root.setAttribute('data-theme', mode);
+      if (persist) { try { localStorage.setItem(STORAGE_KEY, mode); } catch (e) {} }
+      paintSegs(mode);
+    }
+
+    window.hbiSetTheme = function (mode) { applyTheme(mode, true); };
+
+    var saved = null;
+    try { saved = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+    applyTheme(saved || 'auto', false);
+
+    var btn = document.getElementById('brew-copy-btn');
+    var copyIcon = document.getElementById('brew-copy-icon');
+    var checkIcon = document.getElementById('brew-check-icon');
+    var resetTimer;
+    if (btn) {
+      btn.addEventListener('click', function () {
+        try { navigator.clipboard.writeText('brew install --cask mekedron/tap/hiddenbaricons'); } catch (e) {}
+        if (copyIcon) copyIcon.style.display = 'none';
+        if (checkIcon) checkIcon.style.display = 'inline-flex';
+        clearTimeout(resetTimer);
+        resetTimer = setTimeout(function () {
+          if (checkIcon) checkIcon.style.display = 'none';
+          if (copyIcon) copyIcon.style.display = 'inline-flex';
+        }, 1800);
+      });
+    }
+  })();
+</script>
+</body>
+</html>
