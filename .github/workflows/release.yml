@@ -1,0 +1,488 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    runs-on: macos-15
+    permissions:
+      contents: write
+    env:
+      HAS_HOMEBREW_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+      HAS_SIGNING: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 != '' && secrets.MACOS_NOTARY_KEY_P8_BASE64 != '' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Import Developer ID signing certificate
+        if: ${{ env.HAS_SIGNING == 'true' }}
+        env:
+          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_P12_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_P12_PASSWORD }}
+          MACOS_KEYCHAIN_PASSWORD: ${{ secrets.MACOS_KEYCHAIN_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          CERT_PATH="$RUNNER_TEMP/cert.p12"
+
+          # Decode .p12 from base64
+          echo -n "$MACOS_CERTIFICATE_P12_BASE64" | base64 --decode -o "$CERT_PATH"
+
+          # Create + unlock a temporary keychain for this run only
+          security create-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Prepend our keychain to the search list so codesign finds the identity.
+          # Word splitting on $(...) is intentional — list-keychains returns one
+          # quoted path per line and we need each as a separate argument.
+          # shellcheck disable=SC2046
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+
+          # Import the .p12 and allow codesign / security tools to use the key
+          security import "$CERT_PATH" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$MACOS_CERTIFICATE_P12_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s -k "$MACOS_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
+
+          # Extract the Developer ID Application identity (e.g. "Developer ID Application: Foo Bar (TEAMID)")
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
+            | awk -F'"' '/Developer ID Application/ {print $2; exit}')
+
+          if [ -z "$IDENTITY" ]; then
+            echo "::error::No 'Developer ID Application' identity found in the imported .p12"
+            security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+            exit 1
+          fi
+
+          echo "Found signing identity: $IDENTITY"
+          echo "SIGNING_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+          rm -f "$CERT_PATH"
+
+      - name: Resolve Swift Packages
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project HiddenBarIcons.xcodeproj \
+            -scheme HiddenBarIcons
+
+      - name: Build (Universal Binary)
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+
+          # Build unsigned — we sign manually below to control the order
+          # (Sparkle XPC / helpers / framework before the outer .app) and to
+          # apply hardened-runtime + entitlements consistently.
+          xcodebuild build \
+            -project HiddenBarIcons.xcodeproj \
+            -scheme HiddenBarIcons \
+            -configuration Release \
+            -derivedDataPath build \
+            -destination 'generic/platform=macOS' \
+            ARCHS="arm64 x86_64" \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            MARKETING_VERSION="${TAG}" \
+            CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}"
+
+      - name: Download Sparkle tools
+        run: |
+          # The Sparkle SwiftPM dependency embeds the framework into the .app,
+          # but does NOT vend the host-side sign_update tool. Download the
+          # matching Sparkle release tarball just for sign_update.
+          # Read pinned version from Package.resolved (workspace-level for Xcode projects).
+          RESOLVED="HiddenBarIcons.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+          SPARKLE_VERSION=""
+          if [ -f "$RESOLVED" ]; then
+            SPARKLE_VERSION=$(python3 -c "
+          import json, sys
+          with open('${RESOLVED}') as f:
+              data = json.load(f)
+          for pin in data.get('pins', []):
+              ident = pin.get('identity', '') or pin.get('package', '')
+              if 'sparkle' in ident.lower():
+                  state = pin.get('state', {})
+                  print(state.get('version', ''))
+                  break
+          ")
+          fi
+          if [ -z "$SPARKLE_VERSION" ]; then
+            echo "Could not detect Sparkle version from Package.resolved, falling back to 2.6.4"
+            SPARKLE_VERSION="2.6.4"
+          fi
+          echo "Downloading Sparkle ${SPARKLE_VERSION} tools..."
+          curl -L -o sparkle.tar.xz \
+            "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz"
+          mkdir -p sparkle-dist
+          tar xf sparkle.tar.xz -C sparkle-dist
+
+      - name: Sign .app bundle
+        run: |
+          APP_NAME="HiddenBarIcons"
+          APP_PATH="build/Build/Products/Release/${APP_NAME}.app"
+
+          if [ ! -d "$APP_PATH" ]; then
+            echo "::error::Expected .app not found at ${APP_PATH}"
+            find build/Build/Products -maxdepth 3 -name "*.app" -type d
+            exit 1
+          fi
+
+          if [ "$HAS_SIGNING" = "true" ]; then
+            echo "Signing with Developer ID: $SIGNING_IDENTITY"
+            SIGN_OPTS=(--force --timestamp --options runtime --keychain "$KEYCHAIN_PATH" --sign "$SIGNING_IDENTITY")
+
+            # Sign inside-out: nested helpers / XPC services / frameworks BEFORE the outer .app
+
+            # Sparkle XPC services (Downloader.xpc, Installer.xpc) — present in Sparkle 2.x
+            for xpc in "$APP_PATH"/Contents/Frameworks/Sparkle.framework/Versions/*/XPCServices/*.xpc; do
+              [ -d "$xpc" ] && codesign "${SIGN_OPTS[@]}" "$xpc"
+            done
+
+            # Sparkle Updater.app (user-facing UI) and Autoupdate binary
+            for helper in "$APP_PATH"/Contents/Frameworks/Sparkle.framework/Versions/*/Updater.app; do
+              [ -d "$helper" ] && codesign "${SIGN_OPTS[@]}" "$helper"
+            done
+            for bin in "$APP_PATH"/Contents/Frameworks/Sparkle.framework/Versions/*/Autoupdate; do
+              [ -f "$bin" ] && codesign "${SIGN_OPTS[@]}" "$bin"
+            done
+
+            # Sparkle framework itself
+            if [ -d "$APP_PATH/Contents/Frameworks/Sparkle.framework" ]; then
+              codesign "${SIGN_OPTS[@]}" "$APP_PATH/Contents/Frameworks/Sparkle.framework"
+            fi
+
+            # Finally, sign the .app (this also re-signs the main executable).
+            # HiddenBarIcons has no .entitlements file — it's a non-sandboxed
+            # status-bar app whose runtime needs (AX, CGEvent taps, window
+            # introspection) work without entitlements when the binary is
+            # codesigned with the hardened runtime. The user grants
+            # Accessibility from System Settings at first launch.
+            codesign "${SIGN_OPTS[@]}" "$APP_PATH"
+
+            # Verify
+            codesign --verify --strict --verbose=2 "$APP_PATH"
+          else
+            echo "::warning::No signing secrets configured — falling back to ad-hoc signature (Gatekeeper will warn)"
+            codesign --force --deep --sign - "$APP_PATH"
+          fi
+
+          # LSUIElement preservation sanity check: Info.plist must still say YES,
+          # otherwise the released app would show a Dock icon.
+          UIELEMENT=$(/usr/libexec/PlistBuddy -c "Print :LSUIElement" "$APP_PATH/Contents/Info.plist" 2>/dev/null || echo "")
+          if [ "$UIELEMENT" != "true" ]; then
+            echo "::error::LSUIElement is not 'true' in the built .app Info.plist — status-bar-only behavior would be lost. Value: '${UIELEMENT}'"
+            exit 1
+          fi
+          echo "LSUIElement=${UIELEMENT} (status-bar-only behavior preserved)"
+
+          echo "APP_PATH=${APP_PATH}" >> "$GITHUB_ENV"
+
+      - name: Notarize .app
+        if: ${{ env.HAS_SIGNING == 'true' }}
+        env:
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+          MACOS_NOTARY_KEY_P8_BASE64: ${{ secrets.MACOS_NOTARY_KEY_P8_BASE64 }}
+        run: |
+          KEY_PATH="$RUNNER_TEMP/notary.p8"
+          ZIP_PATH="$RUNNER_TEMP/notarize.zip"
+
+          echo -n "$MACOS_NOTARY_KEY_P8_BASE64" | base64 --decode -o "$KEY_PATH"
+
+          # notarytool needs a ZIP/DMG/PKG, not a raw .app — wrap and submit
+          ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
+
+          echo "Submitting .app to Apple notary..."
+          xcrun notarytool submit "$ZIP_PATH" \
+            --key "$KEY_PATH" \
+            --key-id "$MACOS_NOTARY_KEY_ID" \
+            --issuer "$MACOS_NOTARY_ISSUER_ID" \
+            --wait
+
+          # Staple the ticket DIRECTLY to the .app so it survives extraction by Sparkle / etc.
+          echo "Stapling notarization ticket to .app..."
+          xcrun stapler staple "$APP_PATH"
+          xcrun stapler validate "$APP_PATH"
+          spctl --assess --type exec --verbose=2 "$APP_PATH" || true
+
+          rm -f "$KEY_PATH" "$ZIP_PATH"
+
+      - name: Create DMG
+        env:
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+          MACOS_NOTARY_KEY_P8_BASE64: ${{ secrets.MACOS_NOTARY_KEY_P8_BASE64 }}
+        run: |
+          APP_NAME="HiddenBarIcons"
+          TAG="${GITHUB_REF_NAME#v}"
+          DMG_NAME="${APP_NAME}-${TAG}-macOS.dmg"
+
+          mkdir -p dmg_contents
+          cp -R "$APP_PATH" dmg_contents/
+          ln -s /Applications dmg_contents/Applications
+
+          mkdir -p release
+          hdiutil create -volname "${APP_NAME}" \
+            -srcfolder dmg_contents \
+            -ov -format UDZO \
+            "release/${DMG_NAME}"
+
+          if [ "$HAS_SIGNING" = "true" ]; then
+            # The DMG must be separately submitted to notarytool — stapler
+            # queries Apple by the DMG's own SHA, not the contained .app's.
+            # Without this submission the staple step fails with
+            # "Record not found" / Error 65. The .app inside was stapled in
+            # the previous step, which is what Sparkle relies on; the DMG
+            # staple is for direct downloaders who'd otherwise hit an online
+            # Gatekeeper check on first launch.
+            KEY_PATH="$RUNNER_TEMP/notary-dmg.p8"
+            echo -n "$MACOS_NOTARY_KEY_P8_BASE64" | base64 --decode -o "$KEY_PATH"
+
+            echo "Submitting DMG to Apple notary..."
+            xcrun notarytool submit "release/${DMG_NAME}" \
+              --key "$KEY_PATH" \
+              --key-id "$MACOS_NOTARY_KEY_ID" \
+              --issuer "$MACOS_NOTARY_ISSUER_ID" \
+              --wait
+
+            rm -f "$KEY_PATH"
+
+            xcrun stapler staple "release/${DMG_NAME}"
+            xcrun stapler validate "release/${DMG_NAME}"
+          fi
+
+          {
+            echo "DMG_NAME=${DMG_NAME}"
+            echo "DMG_SHA256=$(shasum -a 256 "release/${DMG_NAME}" | awk '{print $1}')"
+          } >> "$GITHUB_ENV"
+          echo "DMG created at release/${DMG_NAME}"
+
+      - name: Sign DMG for Sparkle
+        if: ${{ env.SPARKLE_PRIVATE_KEY != '' }}
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          # Write private key (base64 of the 32-byte Ed25519 seed) to a temp
+          # file and sign with -f. Sparkle 2.9.x sign_update accepts the
+          # "new format" (32-byte seed) or the legacy 96-byte format.
+          KEYFILE=$(mktemp)
+          printf '%s' "${SPARKLE_PRIVATE_KEY}" > "$KEYFILE"
+          SIGN_OUTPUT=$(sparkle-dist/bin/sign_update "release/${DMG_NAME}" -f "$KEYFILE" 2>&1)
+          rm -f "$KEYFILE"
+
+          echo "sign_update output: ${SIGN_OUTPUT}"
+
+          # Extract edSignature
+          ED_SIGNATURE=$(echo "$SIGN_OUTPUT" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')
+          FILE_LENGTH=$(stat -f%z "release/${DMG_NAME}")
+
+          if [ -z "$ED_SIGNATURE" ]; then
+            echo "::error::Failed to extract edSignature from sign_update output"
+            exit 1
+          fi
+
+          {
+            echo "ED_SIGNATURE=${ED_SIGNATURE}"
+            echo "FILE_LENGTH=${FILE_LENGTH}"
+          } >> "$GITHUB_ENV"
+          echo "Signed DMG: edSignature=${ED_SIGNATURE}, length=${FILE_LENGTH}"
+
+      - name: Generate release notes
+        run: |
+          REPO_URL="https://github.com/${GITHUB_REPOSITORY}"
+
+          # Find previous tag (exclude current)
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v "^${GITHUB_REF_NAME}$" | head -1)
+
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="${PREV_TAG}..${GITHUB_REF_NAME}"
+          else
+            RANGE="${GITHUB_REF_NAME}"
+          fi
+
+          echo "Generating notes for range: ${RANGE}"
+
+          # Collect commits grouped by type (skip chore: commits from CI)
+          FEATURES=""
+          FIXES=""
+          OTHER=""
+
+          while IFS= read -r msg; do
+            [ -z "$msg" ] && continue
+            # Skip CI-generated commits
+            case "$msg" in
+              chore:\ update\ appcast*) continue ;;
+            esac
+            # Strip type prefix for display
+            CLEAN=$(echo "$msg" | sed 's/^[a-z]*: //' | sed 's/^[a-z]*(.*): //')
+            CLEAN="$(echo "$CLEAN" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
+
+            case "$msg" in
+              feat:*|feat\(*|feature:*|feature\(*) FEATURES="${FEATURES}- ${CLEAN}\n" ;;
+              fix:*|fix\(*)   FIXES="${FIXES}- ${CLEAN}\n" ;;
+              chore:*|docs:*|ci:*|refactor:*|perf:*|test:*|task:*) OTHER="${OTHER}- ${CLEAN}\n" ;;
+              *)              OTHER="${OTHER}- ${CLEAN}\n" ;;
+            esac
+          done <<< "$(git log "${RANGE}" --pretty=format:'%s' --no-merges)"
+
+          # Build release body
+          BODY=""
+          if [ -n "$FEATURES" ]; then
+            BODY="${BODY}## What's New\n${FEATURES}\n"
+          fi
+          if [ -n "$FIXES" ]; then
+            BODY="${BODY}## Bug Fixes\n${FIXES}\n"
+          fi
+          if [ -n "$OTHER" ]; then
+            BODY="${BODY}## Other Changes\n${OTHER}\n"
+          fi
+
+          # Fallback if no categorized commits
+          if [ -z "$BODY" ]; then
+            BODY="Maintenance release.\n"
+          fi
+
+          # Add full changelog link
+          if [ -n "$PREV_TAG" ]; then
+            BODY="${BODY}**Full Changelog**: ${REPO_URL}/compare/${PREV_TAG}...${GITHUB_REF_NAME}"
+          else
+            BODY="${BODY}**Full Changelog**: ${REPO_URL}/commits/${GITHUB_REF_NAME}"
+          fi
+
+          echo -e "$BODY" > release_notes.md
+          cat release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/${{ env.DMG_NAME }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update appcast.xml
+        if: ${{ env.ED_SIGNATURE != '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          APPCAST_FILE="appcast.xml"
+          echo "Writing release info to ${APPCAST_FILE}"
+
+          # Switch to main first, then generate appcast
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git stash --include-untracked
+          git fetch origin main
+          git checkout main
+
+          cat > "${APPCAST_FILE}" << APPCAST_EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+            <channel>
+              <title>HiddenBarIcons</title>
+              <link>https://github.com/mekedron/HiddenBarIcons</link>
+              <description>HiddenBarIcons updates</description>
+              <language>en</language>
+              <item>
+                <title>Version ${TAG}</title>
+                <sparkle:version>${GITHUB_RUN_NUMBER}</sparkle:version>
+                <sparkle:shortVersionString>${TAG}</sparkle:shortVersionString>
+                <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+                <pubDate>$(date -R)</pubDate>
+                <enclosure
+                  url="https://github.com/mekedron/HiddenBarIcons/releases/download/${GITHUB_REF_NAME}/${DMG_NAME}"
+                  sparkle:edSignature="${ED_SIGNATURE}"
+                  length="${FILE_LENGTH}"
+                  type="application/octet-stream"/>
+              </item>
+            </channel>
+          </rss>
+          APPCAST_EOF
+
+          sed -i '' 's/^          //' "${APPCAST_FILE}"
+
+          git add "${APPCAST_FILE}"
+          git commit -m "chore: update ${APPCAST_FILE} for ${GITHUB_REF_NAME}" || echo "No changes to commit"
+          git push origin main
+
+      - name: Update Homebrew Cask
+        if: ${{ env.HAS_HOMEBREW_TOKEN == 'true' }}
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          python3 << 'PYEOF'
+          import json, base64, urllib.request, os
+
+          token = os.environ["HOMEBREW_TAP_TOKEN"]
+          tag = os.environ["GITHUB_REF_NAME"].lstrip("v")
+          sha256 = os.environ["DMG_SHA256"]
+
+          cask = f'''cask "hiddenbaricons" do
+            version "{tag}"
+            sha256 "{sha256}"
+
+            url "https://github.com/mekedron/HiddenBarIcons/releases/download/v#{{version}}/HiddenBarIcons-#{{version}}-macOS.dmg"
+            name "HiddenBarIcons"
+            desc "Reveal menu bar icons hidden under the MacBook notch"
+            homepage "https://github.com/mekedron/HiddenBarIcons"
+
+            depends_on macos: ">= :sonoma"
+
+            app "HiddenBarIcons.app"
+
+            zap trash: [
+              "~/Library/Application Support/HiddenBarIcons",
+              "~/Library/Preferences/com.mekedron.HiddenBarIcons.plist",
+            ]
+          end
+          '''
+
+          api_url = "https://api.github.com/repos/mekedron/homebrew-tap/contents/Casks/hiddenbaricons.rb"
+          headers = {"Authorization": f"token {token}", "Content-Type": "application/json"}
+
+          # Check if file exists to get its SHA
+          req = urllib.request.Request(api_url, headers=headers)
+          file_sha = ""
+          try:
+              resp = urllib.request.urlopen(req)
+              file_sha = json.loads(resp.read()).get("sha", "")
+          except urllib.error.HTTPError:
+              pass  # File doesn't exist yet, will create
+
+          body = {
+              "message": f"chore: update HiddenBarIcons to {tag}",
+              "content": base64.b64encode(cask.encode()).decode(),
+              "committer": {"name": "github-actions[bot]", "email": "github-actions[bot]@users.noreply.github.com"},
+          }
+          if file_sha:
+              body["sha"] = file_sha
+
+          req = urllib.request.Request(api_url, data=json.dumps(body).encode(), headers=headers, method="PUT")
+          resp = urllib.request.urlopen(req)
+          print(f"Homebrew cask updated to {tag} (status {resp.status})")
+          PYEOF
+
+      - name: Clean up signing keychain
+        if: ${{ always() && env.KEYCHAIN_PATH != '' }}
+        run: |
+          security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true

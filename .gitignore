@@ -1,0 +1,44 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Xcode — note: HiddenBarIcons.xcodeproj IS committed (generated from project.yml
+# by XcodeGen). Only user-specific state and build output are ignored.
+build/
+DerivedData/
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager — Package.resolved is regenerated in CI via
+# `xcodebuild -resolvePackageDependencies` before the Sparkle version is read.
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+
+# CocoaPods / Carthage (unused, reserved)
+Pods/
+Carthage/Build/
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*~
+
+# Local validation scratch (screenshots etc. — never committed)
+.validation/
+tmp/
+
+# Sparkle Ed25519 private key — NEVER commit. The signing key lives only in
+# the SPARKLE_PRIVATE_KEY GitHub secret (and your password manager).
+sparkle_private_key
