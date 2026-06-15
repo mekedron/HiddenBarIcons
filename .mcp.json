@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@1.0.1",
+        "--browserUrl=http://127.0.0.1:9222",
+        "--experimentalPageIdRouting"
+      ],
+      "env": {}
+    }
+  }
+}
+
