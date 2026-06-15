@@ -5,6 +5,10 @@ overflows, macOS hides the icons that would fall under the MacBook notch and you
 can no longer reach them. HiddenBarIcons adds (ironically) one more menu-bar icon
 — click it and your hidden icons are revealed.
 
+<p align="center">
+  <img src="assets/menu.png" width="300" alt="HiddenBarIcons menu listing the apps whose icons are hidden under the notch">
+</p>
+
 > Status-bar-only app (no Dock icon). macOS 14 (Sonoma) and later. Universal
 > (Apple Silicon + Intel). Auto-updates via [Sparkle](https://sparkle-project.org).
 
@@ -72,32 +76,6 @@ git push origin v0.1.0
 > Without signing secrets configured the workflow still runs end-to-end and
 > ships an ad-hoc-signed DMG (Gatekeeper will warn) — handy for a first smoke test.
 
-### One-time signing setup
+## License
 
-The workflow consumes these GitHub Actions secrets:
-
-| Secret | What it is |
-|---|---|
-| `MACOS_CERTIFICATE_P12_BASE64` | base64 of your Developer ID Application `.p12` |
-| `MACOS_CERTIFICATE_P12_PASSWORD` | the `.p12` export passphrase |
-| `MACOS_KEYCHAIN_PASSWORD` | random throwaway (auto-generated) |
-| `MACOS_NOTARY_KEY_ID` | App Store Connect API **Key ID** |
-| `MACOS_NOTARY_ISSUER_ID` | App Store Connect **Issuer ID** |
-| `MACOS_NOTARY_KEY_P8_BASE64` | base64 of the App Store Connect `.p8` key |
-| `SPARKLE_PRIVATE_KEY` | base64 of your Sparkle Ed25519 private seed |
-| `HOMEBREW_TAP_TOKEN` | *(optional)* PAT to auto-update a Homebrew cask |
-
-Populate them — see [`docs/release-setup.md`](docs/release-setup.md):
-
-- [`scripts/bootstrap-release-secrets.sh`](scripts/bootstrap-release-secrets.sh)
-  walks you through every artifact and pushes them with `gh`.
-
-> The `SUPublicEDKey` in [`HiddenBarIcons/Resources/Info.plist`](HiddenBarIcons/Resources/Info.plist)
-> **must** match the `SPARKLE_PRIVATE_KEY` secret, or installed apps will reject
-> updates. Back up the private key — it cannot be recovered.
-
-## Credits
-
-HiddenBarIcons is an independent reimplementation inspired by
-[Barly](https://github.com/domzilla/Barly). It does not depend on or include
-Barly's code or assets. MIT-licensed — see [LICENSE](LICENSE).
+MIT-licensed — see [LICENSE](LICENSE).
