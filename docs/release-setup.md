@@ -1,14 +1,13 @@
 # Release setup — from a fresh Apple Developer account to your first release
 
-This is the prerequisite to running the secret-provisioning scripts. It walks you,
-in order, through producing every artifact the release workflow
-(`.github/workflows/release.yml`) needs.
+It walks you, in order, through producing every artifact the release workflow
+(`.github/workflows/release.yml`) needs, then loading each one into GitHub as an
+Actions secret.
 
-You only need to do this once per machine. Once you have the artifacts, load them
-into GitHub with:
-
-- **`scripts/bootstrap-release-secrets.sh`** — interactive; reads files/IDs from
-  disk and pushes them with `gh`. It can also generate the Sparkle key.
+You only need to do this once per machine. Set each secret with `gh secret set`
+(or in the repo's **Settings → Secrets and variables → Actions**) — the
+secret-name ↔ artifact mapping is at the [bottom of this doc](#reference-secret-names--artifact-mapping),
+and copy-paste commands are in **Set the secrets, then release** below.
 
 ---
 
@@ -99,13 +98,9 @@ workflow signs DMGs with, and a **public** key embedded in
 `HiddenBarIcons/Resources/Info.plist` as `SUPublicEDKey`.
 
 This repo already ships a `SUPublicEDKey`. You must provide the **matching private
-key** as the `SPARKLE_PRIVATE_KEY` secret (base64 of the 32-byte seed):
-
-- **1Password flow:** point `OP_SPARKLE_PRIVATE_KEY` at the item holding it.
-- **Bootstrap flow:** when prompted, give the path to your private key file. The
-  script verifies it matches `SUPublicEDKey` and warns on mismatch. If you leave the
-  path blank it generates a *new* keypair and rewrites `SUPublicEDKey` (only do this
-  if no one runs a build signed with the old key yet — then rebuild & re-release).
+key** as the `SPARKLE_PRIVATE_KEY` secret (base64 of the 32-byte seed). If you ever
+rotate keys, update `SUPublicEDKey` in `Info.plist` to match, then rebuild and
+re-release — installs signed with the old key reject the new one.
 
 > [!IMPORTANT]
 > `SUPublicEDKey` and `SPARKLE_PRIVATE_KEY` must be a matching pair, or installed
@@ -128,11 +123,22 @@ Lets the workflow auto-update a `hiddenbaricons` cask in your tap (e.g.
 
 ---
 
-## Run it
+## Set the secrets, then release
+
+Push each value as a GitHub Actions secret with `gh` (or via the repo's
+**Settings → Secrets and variables → Actions**). The `.p12` and `.p8` go in
+base64-encoded; the rest are plain values:
 
 ```sh
-# Interactive, from files:
-./scripts/bootstrap-release-secrets.sh           # or --skip-homebrew
+R=mekedron/HiddenBarIcons
+gh secret set MACOS_CERTIFICATE_P12_BASE64   --repo "$R" < <(base64 -i developer-id.p12)
+gh secret set MACOS_NOTARY_KEY_P8_BASE64     --repo "$R" < <(base64 -i AuthKey_XXXXXXXXXX.p8)
+gh secret set MACOS_CERTIFICATE_P12_PASSWORD --repo "$R"   # then paste the value
+gh secret set MACOS_NOTARY_KEY_ID            --repo "$R"
+gh secret set MACOS_NOTARY_ISSUER_ID         --repo "$R"
+gh secret set SPARKLE_PRIVATE_KEY            --repo "$R"
+gh secret set MACOS_KEYCHAIN_PASSWORD        --repo "$R" < <(openssl rand -base64 24)
+# HOMEBREW_TAP_TOKEN is optional (only if you maintain a tap).
 ```
 
 Then trigger a release:

@@ -43,6 +43,7 @@ tmp/
 # the SPARKLE_PRIVATE_KEY GitHub secret (and your password manager).
 sparkle_private_key
 
-# Personal secret-provisioning helper — kept local only. It holds your own
-# op:// 1Password references (vault/item paths), so it stays out of the repo.
+# Secret-provisioning helpers — kept local only, out of the public repo.
+# (push-secrets holds your personal op:// 1Password references.)
 scripts/push-secrets-from-1password.sh
+scripts/bootstrap-release-secrets.sh
