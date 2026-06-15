@@ -12,6 +12,20 @@ can no longer reach them. HiddenBarIcons adds (ironically) one more menu-bar ico
 > Status-bar-only app (no Dock icon). macOS 14 (Sonoma) and later. Universal
 > (Apple Silicon + Intel). Auto-updates via [Sparkle](https://sparkle-project.org).
 
+## Install
+
+Install with [Homebrew](https://brew.sh):
+
+```sh
+brew install --cask mekedron/tap/hiddenbaricons
+```
+
+Or download the **`.dmg`** from the
+[latest release](https://github.com/mekedron/HiddenBarIcons/releases/latest), open it,
+and drag **HiddenBarIcons** into **Applications**. Builds are signed with a Developer ID
+and notarized by Apple, so they open without a Gatekeeper prompt — and the app keeps
+itself up to date automatically.
+
 ## How it works
 
 HiddenBarIcons places **two** status items in your menu bar:
