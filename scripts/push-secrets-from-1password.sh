@@ -28,7 +28,7 @@ OP_NOTARY_KEY_ID="op://Private/HiddenBarIcons Notary/key_id"
 OP_NOTARY_ISSUER_ID="op://Private/HiddenBarIcons Notary/issuer_id"
 OP_NOTARY_P8_BASE64="op://Private/HiddenBarIcons Notary/p8_base64"
 OP_SPARKLE_PRIVATE_KEY="op://Private/HiddenBarIcons Sparkle/private_key"
-OP_HOMEBREW_TAP_TOKEN=""   # optional, e.g. op://Private/HiddenBarIcons Homebrew/token
+OP_HOMEBREW_TAP_TOKEN="op://Access Tokens And Keys/Github Homebrew Tap Repo Access Token/password"  # optional, e.g. op://Private/HiddenBarIcons Homebrew/token
 # ─────────────────────────────────────────────────────────────────────────────
 
 command -v op >/dev/null || { echo "1Password CLI not found: brew install 1password-cli"; exit 1; }
