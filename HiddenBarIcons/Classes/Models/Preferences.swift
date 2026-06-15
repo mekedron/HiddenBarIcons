@@ -20,7 +20,7 @@ enum PreferenceDefaults {
     static let autoCollapseDelay = 10 // seconds
     static let showPreferencesOnLaunch = true
     static let isFullExpandEnabled = true
-    static let showHiddenAppsInMenu = false
-    static let allowRightClickHiddenApps = false
+    static let showHiddenAppsInMenu = true
+    static let allowRightClickHiddenApps = true
     static let hideSeparatorWhenExpanded = false
 }
