@@ -6,15 +6,15 @@
     <description>HiddenBarIcons updates</description>
     <language>en</language>
     <item>
-      <title>Version 1.0.0</title>
-      <sparkle:version>1</sparkle:version>
-      <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
+      <title>Version 1.0.1</title>
+      <sparkle:version>2</sparkle:version>
+      <sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <pubDate>Mon, 15 Jun 2026 20:46:26 +0000</pubDate>
+      <pubDate>Fri, 19 Jun 2026 20:24:38 +0000</pubDate>
       <enclosure
-        url="https://github.com/mekedron/HiddenBarIcons/releases/download/v1.0.0/HiddenBarIcons-1.0.0-macOS.dmg"
-        sparkle:edSignature="FKcIvyw31kkgFyvPncRDNQNHG0xsUpj3xeYmlN3wxlPSbyL7OVcJjVw/FgfBhGYbvfHqscnDNkvK8Cv6sCeMDw=="
-        length="1742615"
+        url="https://github.com/mekedron/HiddenBarIcons/releases/download/v1.0.1/HiddenBarIcons-1.0.1-macOS.dmg"
+        sparkle:edSignature="kFLCvJMCDP5nYJAHEg47UU92Nvc3nqe/g+K6Pt5c8/mELktRdORuqPeTcEdrLZP99IWmsKs9qeeRyp26cYdMBA=="
+        length="1750809"
         type="application/octet-stream"/>
     </item>
   </channel>
