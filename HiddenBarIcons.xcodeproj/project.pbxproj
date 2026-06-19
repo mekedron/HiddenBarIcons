@@ -18,6 +18,7 @@
 		69582DAD2BBAA0E65CA3FC50 /* MenuBarExtrasScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 226A42CBEAD4F51D899D0675 /* MenuBarExtrasScanner.swift */; };
 		77C8C4C9C48DB698501EC852 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64EC6C0465C634CEF0BB88EC /* AppDelegate.swift */; };
 		795CA4BA0A9DA9D5B40B1120 /* StatusBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 254FD9B8F29D74C4AF644877 /* StatusBarController.swift */; };
+		8F0D2B588711498259EFBDE3 /* LaunchAtLoginManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D6E475B90171F86EBBB8DD5 /* LaunchAtLoginManager.swift */; };
 		90DCAAA3480E07BA6C169C43 /* DeviceInformation.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0A995755B4280E98C419217 /* DeviceInformation.swift */; };
 		976DDA2A6B6A8C6CC1BF7AE6 /* ActivationPolicyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3407BE6917B05B8ED67C70F /* ActivationPolicyManager.swift */; };
 		A5F3BD99EE21A0AC1ABB25B9 /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB9ACB193E4EB6EE3DA19835 /* PreferencesView.swift */; };
@@ -33,6 +34,7 @@
 		61A889CE5D9ED743DEAF80FB /* MenuController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuController.swift; sourceTree = "<group>"; };
 		64EC6C0465C634CEF0BB88EC /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		650F71C1C7C5FD3847DBB318 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
+		7D6E475B90171F86EBBB8DD5 /* LaunchAtLoginManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginManager.swift; sourceTree = "<group>"; };
 		8A571498FEDBF68869E09F92 /* HotkeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyManager.swift; sourceTree = "<group>"; };
 		9037455644D4002E4B773896 /* HiddenBarIcons.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HiddenBarIcons.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9F5DC0FD1BE72EAF950ADC65 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -75,6 +77,7 @@
 				D0A995755B4280E98C419217 /* DeviceInformation.swift */,
 				E7D6156B2150345B9052547A /* DisplayModeManager.swift */,
 				8A571498FEDBF68869E09F92 /* HotkeyManager.swift */,
+				7D6E475B90171F86EBBB8DD5 /* LaunchAtLoginManager.swift */,
 				650F71C1C7C5FD3847DBB318 /* Log.swift */,
 				226A42CBEAD4F51D899D0675 /* MenuBarExtrasScanner.swift */,
 			);
@@ -228,6 +231,7 @@
 				F517D220A34B5F176649138B /* DisplayModeManager.swift in Sources */,
 				4B51C010EB79D74F142AE5EC /* HiddenAppMenuItemView.swift in Sources */,
 				AFE9C9C8F5C4AD4842A700CA /* HotkeyManager.swift in Sources */,
+				8F0D2B588711498259EFBDE3 /* LaunchAtLoginManager.swift in Sources */,
 				3804D3D2B4EEFBA8B3EBA030 /* Log.swift in Sources */,
 				69582DAD2BBAA0E65CA3FC50 /* MenuBarExtrasScanner.swift in Sources */,
 				1969C89E9793CAE9FF3E4EF5 /* MenuController.swift in Sources */,

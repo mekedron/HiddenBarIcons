@@ -21,6 +21,9 @@ struct PreferencesView: View {
     @AppStorage(PreferenceKeys.hideSeparatorWhenExpanded) private var hideSeparatorWhenExpanded = PreferenceDefaults
         .hideSeparatorWhenExpanded
 
+    // Login-item state is owned by the system (SMAppService), not @AppStorage.
+    @StateObject private var launchAtLogin = LaunchAtLoginManager()
+
     @State private var isAccessibilityTrusted = AccessibilityManager.isTrusted()
     private let accessibilityPollTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
@@ -83,6 +86,12 @@ struct PreferencesView: View {
                 Toggle("Show this window when starting HiddenBarIcons", isOn: self.$showPreferencesOnLaunch)
                     .font(.system(size: 13))
 
+                Toggle("Open at login", isOn: Binding(
+                    get: { self.launchAtLogin.isEnabled },
+                    set: { self.launchAtLogin.setEnabled($0) }
+                ))
+                .font(.system(size: 13))
+
                 Toggle("Hide the separator pipe when expanded (hold \u{2318} to reveal it)", isOn: self.$hideSeparatorWhenExpanded)
                     .font(.system(size: 13))
                     .onChange(of: self.hideSeparatorWhenExpanded) { _, _ in
@@ -119,6 +128,7 @@ struct PreferencesView: View {
         .frame(width: 640, height: 520)
         .onReceive(self.accessibilityPollTimer) { _ in
             self.isAccessibilityTrusted = AccessibilityManager.isTrusted()
+            self.launchAtLogin.refresh()
         }
     }
 
