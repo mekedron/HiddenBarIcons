@@ -85,7 +85,12 @@ class StatusBarController: NSObject {
         self.installMenuOnlyModeObserver()
         if self.isMenuOnlyMode {
             self.applySeparatorVisible(false)
+            self.separatorItem.isVisible = false
             self.arrowItem.button?.image = self.restingArrowImage
+        } else {
+            // A stale "NSStatusItem Visible" default (e.g. the mode was on
+            // during the previous run) must not keep the separator removed.
+            self.separatorItem.isVisible = true
         }
 
         // Auto-collapse after 1 second on launch (no-op in menu-only mode)
@@ -349,8 +354,12 @@ class StatusBarController: NSObject {
         if self.isMenuOnlyMode {
             self.stopCommandKeyPolling()
             self.applySeparatorVisible(false)
+            // Remove the separator from the bar entirely; the autosaved
+            // preferred position survives the round-trip.
+            self.separatorItem.isVisible = false
             self.activationPolicyManager.deactivate()
         } else {
+            self.separatorItem.isVisible = true
             self.refreshSeparatorForCurrentState()
             self.startAutoCollapseTimerIfNeeded()
         }
