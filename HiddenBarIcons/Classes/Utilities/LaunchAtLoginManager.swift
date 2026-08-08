@@ -3,6 +3,7 @@
 //  HiddenBarIcons
 //
 
+import AppKit
 import Foundation
 import os
 import ServiceManagement
@@ -19,6 +20,19 @@ import ServiceManagement
 /// and persists across logout/reboot; no entitlement is required.
 @MainActor
 final class LaunchAtLoginManager: ObservableObject {
+    /// Whether this process was started by the system as a login item, as opposed to
+    /// being opened by the user. The open-application Apple event of a login-item
+    /// launch carries `keyAELaunchedAsLogInItem`. That event is only current while it
+    /// is being dispatched, so this must first be read inside
+    /// `applicationDidFinishLaunching` (it is — via `StatusBarController.init`);
+    /// later reads return the value captured then.
+    static let wasLaunchedAtLogin: Bool = {
+        guard let event = NSAppleEventManager.shared().currentAppleEvent else { return false }
+        return event.eventID == AEEventID(kAEOpenApplication)
+            && event.paramDescriptor(forKeyword: AEKeyword(keyAEPropData))?.enumCodeValue
+            == OSType(keyAELaunchedAsLogInItem)
+    }()
+
     /// Whether HiddenBarIcons is currently registered as an enabled login item.
     @Published private(set) var isEnabled: Bool
 

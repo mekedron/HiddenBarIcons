@@ -12,6 +12,8 @@ struct PreferencesView: View {
     @AppStorage(PreferenceKeys.autoCollapseDelay) private var autoCollapseDelay = PreferenceDefaults.autoCollapseDelay
     @AppStorage(PreferenceKeys.showPreferencesOnLaunch) private var showPreferencesOnLaunch = PreferenceDefaults
         .showPreferencesOnLaunch
+    @AppStorage(PreferenceKeys.hidePreferencesOnLoginLaunch) private var hidePreferencesOnLoginLaunch =
+        PreferenceDefaults.hidePreferencesOnLoginLaunch
     @AppStorage(PreferenceKeys.isFullExpandEnabled) private var isFullExpandEnabled = PreferenceDefaults
         .isFullExpandEnabled
     @AppStorage(PreferenceKeys.showHiddenAppsInMenu) private var showHiddenAppsInMenu = PreferenceDefaults
@@ -85,6 +87,11 @@ struct PreferencesView: View {
 
                 Toggle("Show this window when starting HiddenBarIcons", isOn: self.$showPreferencesOnLaunch)
                     .font(.system(size: 13))
+
+                Toggle("Don't show it when started automatically at login", isOn: self.$hidePreferencesOnLoginLaunch)
+                    .font(.system(size: 13))
+                    .disabled(!self.showPreferencesOnLaunch)
+                    .padding(.leading, 20)
 
                 Toggle("Open at login", isOn: Binding(
                     get: { self.launchAtLogin.isEnabled },

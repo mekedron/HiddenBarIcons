@@ -120,10 +120,16 @@ class StatusBarController: NSObject {
     private func showPreferencesOnLaunchIfNeeded() {
         let showOnLaunch = UserDefaults.standard.object(forKey: PreferenceKeys.showPreferencesOnLaunch) as? Bool
             ?? PreferenceDefaults.showPreferencesOnLaunch
+        guard showOnLaunch else { return }
 
-        if showOnLaunch {
-            self.menuController.showPreferencesWindow()
+        let hideOnLoginLaunch = UserDefaults.standard
+            .object(forKey: PreferenceKeys.hidePreferencesOnLoginLaunch) as? Bool
+            ?? PreferenceDefaults.hidePreferencesOnLoginLaunch
+        if hideOnLoginLaunch, LaunchAtLoginManager.wasLaunchedAtLogin {
+            return
         }
+
+        self.menuController.showPreferencesWindow()
     }
 
     // MARK: - Expand/Collapse

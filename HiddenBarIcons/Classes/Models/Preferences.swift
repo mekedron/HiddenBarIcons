@@ -9,6 +9,7 @@ enum PreferenceKeys {
     static let isAutoCollapseEnabled = "isAutoCollapseEnabled"
     static let autoCollapseDelay = "autoCollapseDelay"
     static let showPreferencesOnLaunch = "showPreferencesOnLaunch"
+    static let hidePreferencesOnLoginLaunch = "hidePreferencesOnLoginLaunch"
     static let isFullExpandEnabled = "isFullExpandEnabled"
     static let showHiddenAppsInMenu = "showHiddenAppsInMenu"
     static let allowRightClickHiddenApps = "allowRightClickHiddenApps"
@@ -19,6 +20,7 @@ enum PreferenceDefaults {
     static let isAutoCollapseEnabled = true
     static let autoCollapseDelay = 10 // seconds
     static let showPreferencesOnLaunch = true
+    static let hidePreferencesOnLoginLaunch = true
     static let isFullExpandEnabled = true
     static let showHiddenAppsInMenu = true
     static let allowRightClickHiddenApps = true
