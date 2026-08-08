@@ -285,13 +285,18 @@ final class MenuBarExtrasScanner {
 
         let separatorFrame = self.separatorFrameProvider?()
 
-        // Detection only makes sense when the app is actually hiding items
-        // (separator stretched to its expanded length). While expanded the
-        // separator span is small and would misclassify every visible status
-        // item as hidden, so we leave the cache untouched.
+        // Detection normally only makes sense while the app is hiding items
+        // (separator stretched to its expanded length) — a transiently
+        // expanded bar has nothing hidden. Menu-only mode is the exception:
+        // the separator hides nothing there, but items can still sit
+        // off-screen (notch, overflow) and the per-display band classifier
+        // detects them without referencing the separator at all.
+        let menuOnlyMode = UserDefaults.standard
+            .object(forKey: PreferenceKeys.isMenuOnlyModeEnabled) as? Bool
+            ?? PreferenceDefaults.isMenuOnlyModeEnabled
         let isStatusBarCollapsed = (separatorFrame?.width ?? 0)
             > self.collapsedSeparatorWidthThreshold
-        guard isStatusBarCollapsed else {
+        guard isStatusBarCollapsed || menuOnlyMode else {
             DZLog("scanHidden: skipped (status bar expanded, no items hidden)")
             return
         }

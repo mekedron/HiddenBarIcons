@@ -82,7 +82,7 @@ struct PreferencesView: View {
                         NotificationCenter.default.post(name: .menuOnlyModePreferenceChanged, object: nil)
                     }
 
-                Text("Icons stay hidden and the arrow just opens the menu — expanding and collapsing are disabled.")
+                Text("Turns hiding off entirely: every icon returns to the bar and the arrow just opens the menu.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

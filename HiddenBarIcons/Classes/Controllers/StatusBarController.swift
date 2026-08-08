@@ -43,9 +43,9 @@ class StatusBarController: NSObject {
             ?? PreferenceDefaults.hideSeparatorWhenExpanded
     }
 
-    /// Menu-only mode: expanding/collapsing is disabled entirely — the bar
-    /// stays collapsed (icons hidden behind the separator) and the arrow acts
-    /// purely as a menu button.
+    /// Menu-only mode: hiding is disabled entirely — every icon returns to
+    /// the bar, the separator disappears (zero length, position preserved),
+    /// and the arrow acts purely as a menu button.
     private var isMenuOnlyMode: Bool {
         UserDefaults.standard.object(forKey: PreferenceKeys.isMenuOnlyModeEnabled) as? Bool
             ?? PreferenceDefaults.isMenuOnlyModeEnabled
@@ -84,10 +84,11 @@ class StatusBarController: NSObject {
         self.installSeparatorPreferenceObserver()
         self.installMenuOnlyModeObserver()
         if self.isMenuOnlyMode {
+            self.applySeparatorVisible(false)
             self.arrowItem.button?.image = self.restingArrowImage
         }
 
-        // Auto-collapse after 1 second on launch
+        // Auto-collapse after 1 second on launch (no-op in menu-only mode)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
             self?.collapseStatusBar()
         }
@@ -209,6 +210,7 @@ class StatusBarController: NSObject {
     }
 
     private func collapseStatusBar() {
+        guard !self.isMenuOnlyMode else { return }
         guard self.isSeparatorValidPosition, !self.isCollapsed else {
             self.startAutoCollapseTimerIfNeeded()
             return
@@ -337,13 +339,20 @@ class StatusBarController: NSObject {
         }
     }
 
-    /// Applies a live toggle of menu-only mode from Preferences: entering the
-    /// mode force-collapses the bar (its permanent state); leaving it just
-    /// restores the direction arrow — the bar is already collapsed.
+    /// Applies a live toggle of menu-only mode from Preferences. Entering the
+    /// mode turns hiding off completely: every icon returns to the bar and the
+    /// separator shrinks to zero length (its autosaved position survives).
+    /// Leaving it restores the separator per preference and lets auto-collapse
+    /// take over again.
     private func applyMenuOnlyModeChange() {
+        self.autoCollapseTimer?.invalidate()
         if self.isMenuOnlyMode {
-            self.autoCollapseTimer?.invalidate()
-            self.collapseStatusBar()
+            self.stopCommandKeyPolling()
+            self.applySeparatorVisible(false)
+            self.activationPolicyManager.deactivate()
+        } else {
+            self.refreshSeparatorForCurrentState()
+            self.startAutoCollapseTimerIfNeeded()
         }
         self.arrowItem.button?.image = self.restingArrowImage
     }
