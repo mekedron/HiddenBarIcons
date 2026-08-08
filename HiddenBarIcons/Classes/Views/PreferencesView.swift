@@ -188,9 +188,16 @@ struct PreferencesView: View {
         }
         .padding(.horizontal, 20)
         .frame(width: 640, height: 750)
+        .onAppear {
+            NotificationCenter.default.post(name: .warmHiddenAppsCache, object: nil)
+        }
         .onReceive(self.accessibilityPollTimer) { _ in
             self.isAccessibilityTrusted = AccessibilityManager.isTrusted()
             self.launchAtLogin.refresh()
+            // Keep the separator-hides-nothing signal fresh while the window
+            // is visible: dragging icons around the bar emits no system
+            // events, so the scanner would otherwise never notice.
+            NotificationCenter.default.post(name: .warmHiddenAppsCache, object: nil)
         }
     }
 
