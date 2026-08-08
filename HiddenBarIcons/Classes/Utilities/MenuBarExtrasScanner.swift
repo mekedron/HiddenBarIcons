@@ -294,9 +294,12 @@ final class MenuBarExtrasScanner {
         let menuOnlyMode = UserDefaults.standard
             .object(forKey: PreferenceKeys.isMenuOnlyModeEnabled) as? Bool
             ?? PreferenceDefaults.isMenuOnlyModeEnabled
+        let showAllApps = UserDefaults.standard
+            .object(forKey: PreferenceKeys.showAllAppsInMenu) as? Bool
+            ?? PreferenceDefaults.showAllAppsInMenu
         let isStatusBarCollapsed = (separatorFrame?.width ?? 0)
             > self.collapsedSeparatorWidthThreshold
-        guard isStatusBarCollapsed || menuOnlyMode else {
+        guard isStatusBarCollapsed || menuOnlyMode || showAllApps else {
             DZLog("scanHidden: skipped (status bar expanded, no items hidden)")
             return
         }
@@ -327,7 +330,8 @@ final class MenuBarExtrasScanner {
                 screenInfos: screenInfos,
                 menuBarYTolerance: menuBarYTolerance,
                 axMessagingTimeout: timeout,
-                ownBundleId: ownBundleId
+                ownBundleId: ownBundleId,
+                includeVisibleItems: showAllApps
             )
             let cancelled = Task.isCancelled
             await self?.handleScanCompletion(
@@ -399,7 +403,8 @@ final class MenuBarExtrasScanner {
         screenInfos: [ScreenInfo],
         menuBarYTolerance: CGFloat,
         axMessagingTimeout: Float,
-        ownBundleId: String?
+        ownBundleId: String?,
+        includeVisibleItems: Bool
     ) -> ScanResult {
         let started = Date()
         let reference = Self.menuBarReference(
@@ -446,9 +451,14 @@ final class MenuBarExtrasScanner {
                 // Skip phantom items: zero-sized widgets, or anchored far below the
                 // menu bar (Control Center exposes inactive widgets at (0, 1692)).
                 guard let size = Self.readSize(element: child),
-                      size.width > 0, size.height > 0,
-                      reference.isHidden(position)
+                      size.width > 0, size.height > 0
                 else { continue }
+                // The y-band check also applies to visible items: it is what
+                // filters phantom widgets anchored outside any menu bar.
+                let inMenuBarBand = reference.bands
+                    .contains { $0.menuBarYRange.contains(position.y) }
+                guard inMenuBarBand else { continue }
+                guard includeVisibleItems || reference.isHidden(position) else { continue }
 
                 let label = Self.readLabel(element: child)
                 let displayName: String
@@ -558,6 +568,17 @@ final class MenuBarExtrasScanner {
     ) {
         let element = item.element
 
+        // Already on-screen (a visible item from "show all", or the bar is
+        // expanded): act directly, no expand dance needed.
+        if let clickPoint = self.clickPoint(for: element) {
+            if action == .contextMenu {
+                self.simulateMouseClick(at: clickPoint, action: action, restoreMouse: true)
+            } else {
+                self.performAccessibilityPress(on: element)
+            }
+            return
+        }
+
         let menuOnlyMode = UserDefaults.standard
             .object(forKey: PreferenceKeys.isMenuOnlyModeEnabled) as? Bool
             ?? PreferenceDefaults.isMenuOnlyModeEnabled
@@ -565,10 +586,8 @@ final class MenuBarExtrasScanner {
             // The bar never expands in menu-only mode, so the item stays
             // off-screen. AX press works regardless of position; a context
             // menu needs on-screen coordinates for a real click, so fall back
-            // to the AXShowMenu action when the item is not visible.
-            if action == .contextMenu, let clickPoint = self.clickPoint(for: element) {
-                self.simulateMouseClick(at: clickPoint, action: action, restoreMouse: true)
-            } else if action == .contextMenu {
+            // to the AXShowMenu action.
+            if action == .contextMenu {
                 self.performAccessibilityShowMenu(on: element)
             } else {
                 self.performAccessibilityPress(on: element)

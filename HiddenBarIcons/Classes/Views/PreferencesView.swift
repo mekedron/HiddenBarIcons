@@ -18,6 +18,8 @@ struct PreferencesView: View {
         .isFullExpandEnabled
     @AppStorage(PreferenceKeys.showHiddenAppsInMenu) private var showHiddenAppsInMenu = PreferenceDefaults
         .showHiddenAppsInMenu
+    @AppStorage(PreferenceKeys.showAllAppsInMenu) private var showAllAppsInMenu = PreferenceDefaults
+        .showAllAppsInMenu
     @AppStorage(PreferenceKeys.allowRightClickHiddenApps) private var allowRightClickHiddenApps = PreferenceDefaults
         .allowRightClickHiddenApps
     @AppStorage(PreferenceKeys.hideSeparatorWhenExpanded) private var hideSeparatorWhenExpanded = PreferenceDefaults
@@ -122,6 +124,18 @@ struct PreferencesView: View {
                     .onChange(of: self.hideSeparatorWhenExpanded) { _, _ in
                         NotificationCenter.default.post(name: .separatorVisibilityPreferenceChanged, object: nil)
                     }
+
+                if self.hideSeparatorWhenExpanded {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 10))
+                        Text("The separator pipe is invisible right now — hold \u{2318} to see it in the menu bar.")
+                            .font(.system(size: 11))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .foregroundStyle(.red)
+                    .padding(.leading, 20)
+                }
             }
             .disabled(self.isMenuOnlyModeEnabled)
 
@@ -152,7 +166,7 @@ struct PreferencesView: View {
             .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
-        .frame(width: 640, height: 680)
+        .frame(width: 640, height: 720)
         .onReceive(self.accessibilityPollTimer) { _ in
             self.isAccessibilityTrusted = AccessibilityManager.isTrusted()
             self.launchAtLogin.refresh()
@@ -185,6 +199,14 @@ struct PreferencesView: View {
                     if isTrusted, self.showHiddenAppsInMenu {
                         NotificationCenter.default.post(name: .warmHiddenAppsCache, object: nil)
                     }
+                }
+
+            Toggle("Show all apps, not only hidden ones", isOn: self.$showAllAppsInMenu)
+                .font(.system(size: 13))
+                .disabled(!self.showHiddenAppsInMenu)
+                .padding(.leading, 20)
+                .onChange(of: self.showAllAppsInMenu) { _, _ in
+                    NotificationCenter.default.post(name: .warmHiddenAppsCache, object: nil)
                 }
 
             Toggle("Allow right-clicking hidden apps in context menu", isOn: self.$allowRightClickHiddenApps)
