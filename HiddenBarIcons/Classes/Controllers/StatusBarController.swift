@@ -8,6 +8,7 @@ import Sparkle
 
 extension Notification.Name {
     static let separatorVisibilityPreferenceChanged = Notification.Name("HBISeparatorVisibilityPreferenceChanged")
+    static let menuOnlyModePreferenceChanged = Notification.Name("HBIMenuOnlyModePreferenceChanged")
 }
 
 @MainActor
@@ -30,6 +31,7 @@ class StatusBarController: NSObject {
     private var commandKeyPollTimer: Timer?
     private var lastObservedCommandPressed = false
     private var separatorPreferenceObserver: NSObjectProtocol?
+    private var menuOnlyModeObserver: NSObjectProtocol?
     private let commandKeyPollInterval: TimeInterval = 0.05
 
     private let separatorHiddenLength: CGFloat = 0
@@ -39,6 +41,22 @@ class StatusBarController: NSObject {
     private var hideSeparatorWhenExpanded: Bool {
         UserDefaults.standard.object(forKey: PreferenceKeys.hideSeparatorWhenExpanded) as? Bool
             ?? PreferenceDefaults.hideSeparatorWhenExpanded
+    }
+
+    /// Menu-only mode: expanding/collapsing is disabled entirely — the bar
+    /// stays collapsed (icons hidden behind the separator) and the arrow acts
+    /// purely as a menu button.
+    private var isMenuOnlyMode: Bool {
+        UserDefaults.standard.object(forKey: PreferenceKeys.isMenuOnlyModeEnabled) as? Bool
+            ?? PreferenceDefaults.isMenuOnlyModeEnabled
+    }
+
+    /// The arrow glyph for the current mode/state while no menu is open.
+    private var restingArrowImage: NSImage? {
+        if self.isMenuOnlyMode {
+            return NSImage(named: "menuOpen")
+        }
+        return NSImage(named: self.isCollapsed ? "expand" : "collapse")
     }
 
     private var isCollapsed: Bool {
@@ -64,6 +82,10 @@ class StatusBarController: NSObject {
         self.setupDisplayModeManager()
         self.setupHiddenAppsScanner()
         self.installSeparatorPreferenceObserver()
+        self.installMenuOnlyModeObserver()
+        if self.isMenuOnlyMode {
+            self.arrowItem.button?.image = self.restingArrowImage
+        }
 
         // Auto-collapse after 1 second on launch
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
@@ -76,6 +98,9 @@ class StatusBarController: NSObject {
     deinit {
         self.commandKeyPollTimer?.invalidate()
         if let observer = self.separatorPreferenceObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = self.menuOnlyModeObserver {
             NotificationCenter.default.removeObserver(observer)
         }
     }
@@ -141,7 +166,7 @@ class StatusBarController: NSObject {
         let isRightClick = event.type == .rightMouseUp
         let isControlClick = event.type == .leftMouseUp && event.modifierFlags.contains(.control)
 
-        if isRightClick || isControlClick {
+        if isRightClick || isControlClick || self.isMenuOnlyMode {
             // Show context menu on right-click or control-click
             let menu = self.menuController.createContextMenu()
             menu.delegate = self
@@ -155,6 +180,7 @@ class StatusBarController: NSObject {
     }
 
     func toggleExpandCollapse() {
+        guard !self.isMenuOnlyMode else { return }
         if self.isCollapsed {
             self.expandStatusBar()
         } else {
@@ -193,7 +219,7 @@ class StatusBarController: NSObject {
         self.separatorItem.length = self.separatorExpandedLength
 
         if let button = arrowItem.button {
-            button.image = NSImage(named: "expand")
+            button.image = self.restingArrowImage
         }
 
         self.updateCommandKeyPolling()
@@ -210,7 +236,7 @@ class StatusBarController: NSObject {
     }
 
     func expandStatusBar() {
-        guard self.isCollapsed else { return }
+        guard !self.isMenuOnlyMode, self.isCollapsed else { return }
 
         let shouldShow = !self.hideSeparatorWhenExpanded || NSEvent.modifierFlags.contains(.command)
         self.applySeparatorVisible(shouldShow)
@@ -299,6 +325,29 @@ class StatusBarController: NSObject {
         self.applySeparatorVisible(commandHeld)
     }
 
+    private func installMenuOnlyModeObserver() {
+        self.menuOnlyModeObserver = NotificationCenter.default.addObserver(
+            forName: .menuOnlyModePreferenceChanged,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.applyMenuOnlyModeChange()
+            }
+        }
+    }
+
+    /// Applies a live toggle of menu-only mode from Preferences: entering the
+    /// mode force-collapses the bar (its permanent state); leaving it just
+    /// restores the direction arrow — the bar is already collapsed.
+    private func applyMenuOnlyModeChange() {
+        if self.isMenuOnlyMode {
+            self.autoCollapseTimer?.invalidate()
+            self.collapseStatusBar()
+        }
+        self.arrowItem.button?.image = self.restingArrowImage
+    }
+
     private func installSeparatorPreferenceObserver() {
         self.separatorPreferenceObserver = NotificationCenter.default.addObserver(
             forName: .separatorVisibilityPreferenceChanged,
@@ -331,6 +380,6 @@ extension StatusBarController: NSMenuDelegate {
     }
 
     func menuDidClose(_: NSMenu) {
-        self.arrowItem.button?.image = NSImage(named: self.isCollapsed ? "expand" : "collapse")
+        self.arrowItem.button?.image = self.restingArrowImage
     }
 }

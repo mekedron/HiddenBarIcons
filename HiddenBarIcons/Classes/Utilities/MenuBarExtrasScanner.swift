@@ -553,6 +553,24 @@ final class MenuBarExtrasScanner {
     ) {
         let element = item.element
 
+        let menuOnlyMode = UserDefaults.standard
+            .object(forKey: PreferenceKeys.isMenuOnlyModeEnabled) as? Bool
+            ?? PreferenceDefaults.isMenuOnlyModeEnabled
+        if menuOnlyMode {
+            // The bar never expands in menu-only mode, so the item stays
+            // off-screen. AX press works regardless of position; a context
+            // menu needs on-screen coordinates for a real click, so fall back
+            // to the AXShowMenu action when the item is not visible.
+            if action == .contextMenu, let clickPoint = self.clickPoint(for: element) {
+                self.simulateMouseClick(at: clickPoint, action: action, restoreMouse: true)
+            } else if action == .contextMenu {
+                self.performAccessibilityShowMenu(on: element)
+            } else {
+                self.performAccessibilityPress(on: element)
+            }
+            return
+        }
+
         self.expandRequested?()
         Task { @MainActor in
             let clickPoint = await self.waitForVisibleClickPoint(on: element)
@@ -589,6 +607,17 @@ final class MenuBarExtrasScanner {
         let result = AXUIElementPerformAction(element, kAXPressAction as CFString)
         if result != .success {
             DZLog("AX press failed (\(result.rawValue))")
+        }
+    }
+
+    /// Opens the item's own menu via AX where a real right-click is not
+    /// possible (item off-screen). Not every app implements AXShowMenu, so a
+    /// failed attempt degrades to a plain press.
+    private func performAccessibilityShowMenu(on element: AXUIElement) {
+        let result = AXUIElementPerformAction(element, "AXShowMenu" as CFString)
+        if result != .success {
+            DZLog("AX showMenu failed (\(result.rawValue)), falling back to press")
+            self.performAccessibilityPress(on: element)
         }
     }
 

@@ -22,6 +22,8 @@ struct PreferencesView: View {
         .allowRightClickHiddenApps
     @AppStorage(PreferenceKeys.hideSeparatorWhenExpanded) private var hideSeparatorWhenExpanded = PreferenceDefaults
         .hideSeparatorWhenExpanded
+    @AppStorage(PreferenceKeys.isMenuOnlyModeEnabled) private var isMenuOnlyModeEnabled = PreferenceDefaults
+        .isMenuOnlyModeEnabled
 
     // Login-item state is owned by the system (SMAppService), not @AppStorage.
     @StateObject private var launchAtLogin = LaunchAtLoginManager()
@@ -58,32 +60,13 @@ struct PreferencesView: View {
 
             Spacer()
 
-            // Auto-collapse duration
-            HStack(spacing: 8) {
-                Text("Auto-collapse after:")
-                    .font(.system(size: 13))
-
-                Picker("", selection: self.$autoCollapseDelay) {
-                    Text("5 seconds").tag(5)
-                    Text("10 seconds").tag(10)
-                    Text("15 seconds").tag(15)
-                    Text("30 seconds").tag(30)
-                    Text("1 minute").tag(60)
-                }
-                .pickerStyle(.menu)
-                .frame(width: 180)
-
-                Spacer()
-            }
-            .padding(.bottom, 16)
-
-            // Checkboxes
+            self.sectionHeader("General")
             VStack(alignment: .leading, spacing: 8) {
-                Toggle("Enable auto-collapse", isOn: self.$isAutoCollapseEnabled)
-                    .font(.system(size: 13))
-
-                Toggle("Fully expand status bar (shows Dock icon temporarily)", isOn: self.$isFullExpandEnabled)
-                    .font(.system(size: 13))
+                Toggle("Open at login", isOn: Binding(
+                    get: { self.launchAtLogin.isEnabled },
+                    set: { self.launchAtLogin.setEnabled($0) }
+                ))
+                .font(.system(size: 13))
 
                 Toggle("Show this window when starting HiddenBarIcons", isOn: self.$showPreferencesOnLaunch)
                     .font(.system(size: 13))
@@ -93,11 +76,46 @@ struct PreferencesView: View {
                     .disabled(!self.showPreferencesOnLaunch)
                     .padding(.leading, 20)
 
-                Toggle("Open at login", isOn: Binding(
-                    get: { self.launchAtLogin.isEnabled },
-                    set: { self.launchAtLogin.setEnabled($0) }
-                ))
-                .font(.system(size: 13))
+                Toggle("Menu-only mode", isOn: self.$isMenuOnlyModeEnabled)
+                    .font(.system(size: 13))
+                    .onChange(of: self.isMenuOnlyModeEnabled) { _, _ in
+                        NotificationCenter.default.post(name: .menuOnlyModePreferenceChanged, object: nil)
+                    }
+
+                Text("Icons stay hidden and the arrow just opens the menu — expanding and collapsing are disabled.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.leading, 20)
+            }
+
+            Divider()
+                .padding(.vertical, 12)
+
+            self.sectionHeader("Collapsing")
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Text("Auto-collapse after:")
+                        .font(.system(size: 13))
+
+                    Picker("", selection: self.$autoCollapseDelay) {
+                        Text("5 seconds").tag(5)
+                        Text("10 seconds").tag(10)
+                        Text("15 seconds").tag(15)
+                        Text("30 seconds").tag(30)
+                        Text("1 minute").tag(60)
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 180)
+
+                    Spacer()
+                }
+
+                Toggle("Enable auto-collapse", isOn: self.$isAutoCollapseEnabled)
+                    .font(.system(size: 13))
+
+                Toggle("Fully expand status bar (shows Dock icon temporarily)", isOn: self.$isFullExpandEnabled)
+                    .font(.system(size: 13))
 
                 Toggle("Hide the separator pipe when expanded (hold \u{2318} to reveal it)", isOn: self.$hideSeparatorWhenExpanded)
                     .font(.system(size: 13))
@@ -105,10 +123,12 @@ struct PreferencesView: View {
                         NotificationCenter.default.post(name: .separatorVisibilityPreferenceChanged, object: nil)
                     }
             }
+            .disabled(self.isMenuOnlyModeEnabled)
 
             Divider()
-                .padding(.vertical, 14)
+                .padding(.vertical, 12)
 
+            self.sectionHeader("Hidden apps menu")
             self.hiddenAppsSection
 
             Spacer()
@@ -132,11 +152,19 @@ struct PreferencesView: View {
             .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
-        .frame(width: 640, height: 550)
+        .frame(width: 640, height: 680)
         .onReceive(self.accessibilityPollTimer) { _ in
             self.isAccessibilityTrusted = AccessibilityManager.isTrusted()
             self.launchAtLogin.refresh()
         }
+    }
+
+    private func sectionHeader(_ title: LocalizedStringKey) -> some View {
+        Text(title)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(.secondary)
+            .textCase(.uppercase)
+            .padding(.bottom, 6)
     }
 
     // MARK: - Hidden Apps Section

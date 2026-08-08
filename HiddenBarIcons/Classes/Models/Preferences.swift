@@ -14,6 +14,7 @@ enum PreferenceKeys {
     static let showHiddenAppsInMenu = "showHiddenAppsInMenu"
     static let allowRightClickHiddenApps = "allowRightClickHiddenApps"
     static let hideSeparatorWhenExpanded = "hideSeparatorWhenExpanded"
+    static let isMenuOnlyModeEnabled = "isMenuOnlyModeEnabled"
 }
 
 enum PreferenceDefaults {
@@ -25,4 +26,5 @@ enum PreferenceDefaults {
     static let showHiddenAppsInMenu = true
     static let allowRightClickHiddenApps = true
     static let hideSeparatorWhenExpanded = false
+    static let isMenuOnlyModeEnabled = false
 }
