@@ -77,7 +77,7 @@ struct PreferencesView: View {
                     .font(.system(size: 11))
                     .fixedSize(horizontal: false, vertical: true)
                 }
-                .foregroundStyle(.orange)
+                .foregroundStyle(.red)
                 .padding(.top, 8)
             }
 
