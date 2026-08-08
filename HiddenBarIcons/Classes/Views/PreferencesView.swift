@@ -82,6 +82,7 @@ struct PreferencesView: View {
             }
 
             Spacer()
+                .frame(height: 18)
 
             self.sectionHeader("General")
             VStack(alignment: .leading, spacing: 8) {
@@ -167,6 +168,7 @@ struct PreferencesView: View {
             self.hiddenAppsSection
 
             Spacer()
+                .frame(height: 18)
 
             // Footer buttons
             HStack {
@@ -187,7 +189,7 @@ struct PreferencesView: View {
             .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
-        .frame(width: 640, height: 750)
+        .frame(width: 640)
         .onAppear {
             NotificationCenter.default.post(name: .warmHiddenAppsCache, object: nil)
         }

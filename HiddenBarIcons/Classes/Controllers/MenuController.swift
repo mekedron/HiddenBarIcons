@@ -308,11 +308,14 @@ class MenuController: NSObject, NSMenuItemValidation {
         if self.preferencesWindow == nil {
             let contentView = PreferencesView(scanner: self.hiddenAppsScanner ?? MenuBarExtrasScanner())
             let hostingController = NSHostingController(rootView: contentView)
+            // The window tracks the SwiftUI content's ideal size, so
+            // conditional rows (the red warnings) grow and shrink the window
+            // instead of squeezing the layout inside a hardcoded height.
+            hostingController.sizingOptions = .preferredContentSize
 
             let window = NSWindow(contentViewController: hostingController)
             window.title = String(localized: "Welcome to HiddenBarIcons")
             window.styleMask = [.titled, .closable]
-            window.setContentSize(NSSize(width: 640, height: 750))
             window.center()
 
             self.preferencesWindow = window
