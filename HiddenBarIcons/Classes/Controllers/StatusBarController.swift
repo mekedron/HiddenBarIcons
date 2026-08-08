@@ -30,6 +30,11 @@ class StatusBarController: NSObject {
     private var autoCollapseTimer: Timer?
     private var commandKeyPollTimer: Timer?
     private var lastObservedCommandPressed = false
+    /// Pipe glyph pinned to the collapsed separator's right edge, shown while
+    /// ⌘ is held. The collapsed separator is ~10000 pt wide with its image
+    /// centered far off-screen, so without this the pipe cannot be revealed
+    /// at all in the collapsed state.
+    private var collapsedPipeOverlay: NSImageView?
     private var separatorPreferenceObserver: NSObjectProtocol?
     private var menuOnlyModeObserver: NSObjectProtocol?
     private let commandKeyPollInterval: TimeInterval = 0.05
@@ -245,6 +250,7 @@ class StatusBarController: NSObject {
     func expandStatusBar() {
         guard !self.isMenuOnlyMode, self.isCollapsed else { return }
 
+        self.setCollapsedPipeOverlayVisible(false)
         let shouldShow = !self.hideSeparatorWhenExpanded || NSEvent.modifierFlags.contains(.command)
         self.applySeparatorVisible(shouldShow)
 
@@ -290,13 +296,22 @@ class StatusBarController: NSObject {
 
     // MARK: - Command Key Polling
 
-    /// Polls `NSEvent.modifierFlags` while the app is expanded with the
-    /// hide-separator preference on. This works without Accessibility access
-    /// (unlike a global `flagsChanged` event monitor, which requires it),
-    /// so the separator can always be revealed by holding ⌘.
+    /// Whether holding ⌘ should reveal the pipe in the current state:
+    /// while collapsed the pipe is inherently invisible (its glyph sits far
+    /// off-screen inside the stretched separator), and while expanded it is
+    /// hidden only under the hide-separator preference.
+    private var shouldPollCommandKey: Bool {
+        if self.isMenuOnlyMode { return false }
+        return self.isCollapsed || self.hideSeparatorWhenExpanded
+    }
+
+    /// Polls `NSEvent.modifierFlags` and reveals the pipe while ⌘ is held —
+    /// at the collapsed separator's right edge (the hide boundary, exactly
+    /// where ⌘-dragged icons need to go), or by unhiding the expanded pipe.
+    /// Polling works without Accessibility access, unlike a global
+    /// `flagsChanged` event monitor, which requires it.
     private func updateCommandKeyPolling() {
-        let shouldPoll = !self.isCollapsed && self.hideSeparatorWhenExpanded
-        if shouldPoll {
+        if self.shouldPollCommandKey {
             self.startCommandKeyPolling()
         } else {
             self.stopCommandKeyPolling()
@@ -305,8 +320,10 @@ class StatusBarController: NSObject {
 
     private func startCommandKeyPolling() {
         guard self.commandKeyPollTimer == nil else { return }
-        self.lastObservedCommandPressed = NSEvent.modifierFlags.contains(.command)
-        self.commandKeyPollTimer = Timer.scheduledTimer(
+        // Starting from "not pressed" makes an already-held ⌘ register on the
+        // first poll tick instead of being skipped as "no change".
+        self.lastObservedCommandPressed = false
+        let timer = Timer.scheduledTimer(
             withTimeInterval: self.commandKeyPollInterval,
             repeats: true
         ) { [weak self] _ in
@@ -314,22 +331,66 @@ class StatusBarController: NSObject {
                 self?.pollCommandKey()
             }
         }
+        timer.tolerance = self.commandKeyPollInterval
+        self.commandKeyPollTimer = timer
     }
 
     private func stopCommandKeyPolling() {
         self.commandKeyPollTimer?.invalidate()
         self.commandKeyPollTimer = nil
+        self.setCollapsedPipeOverlayVisible(false)
     }
 
     private func pollCommandKey() {
-        guard !self.isCollapsed, self.hideSeparatorWhenExpanded else {
+        guard self.shouldPollCommandKey else {
             self.stopCommandKeyPolling()
             return
         }
         let commandHeld = NSEvent.modifierFlags.contains(.command)
         guard commandHeld != self.lastObservedCommandPressed else { return }
         self.lastObservedCommandPressed = commandHeld
-        self.applySeparatorVisible(commandHeld)
+        if self.isCollapsed {
+            self.setCollapsedPipeOverlayVisible(commandHeld)
+        } else {
+            self.applySeparatorVisible(commandHeld)
+        }
+    }
+
+    private func setCollapsedPipeOverlayVisible(_ visible: Bool) {
+        guard visible else {
+            self.collapsedPipeOverlay?.isHidden = true
+            return
+        }
+        guard let button = self.separatorItem.button else { return }
+
+        let overlay: NSImageView
+        if let existing = self.collapsedPipeOverlay {
+            overlay = existing
+        } else {
+            let imageView = NSImageView()
+            imageView.image = NSImage(named: "separator")
+            imageView.imageScaling = .scaleNone
+            imageView.autoresizingMask = [.minXMargin, .height]
+            button.addSubview(imageView)
+            self.collapsedPipeOverlay = imageView
+            overlay = imageView
+        }
+        // Anchor to the WINDOW's right edge, not the button's: the button can
+        // be laid out at the full ~10000 pt separator length while the window
+        // is clamped to the screen, which would put a bounds-anchored overlay
+        // far off-screen.
+        var rightEdgeX = button.bounds.maxX
+        if let window = button.window {
+            let windowRightInButton = button.convert(NSPoint(x: window.frame.width, y: 0), from: nil).x
+            rightEdgeX = min(rightEdgeX, windowRightInButton)
+        }
+        overlay.frame = NSRect(
+            x: rightEdgeX - self.separatorVisibleLength,
+            y: 0,
+            width: self.separatorVisibleLength,
+            height: button.bounds.height
+        )
+        overlay.isHidden = false
     }
 
     private func installMenuOnlyModeObserver() {
