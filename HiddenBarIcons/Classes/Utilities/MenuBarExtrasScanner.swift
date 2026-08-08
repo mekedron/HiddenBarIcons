@@ -476,14 +476,26 @@ final class MenuBarExtrasScanner {
         )
     }
 
+    /// Picks the screen the separator actually sits on. The collapsed
+    /// separator is ~10000 pt wide and overflows far past the left edge of its
+    /// display — on a multi-monitor layout its center can land on a neighbor
+    /// screen, which would anchor hidden-item detection to the wrong menu bar
+    /// (empty list on the secondary display). The status item grows leftward
+    /// from its slot, so the frame's RIGHT edge is the reliable anchor.
     nonisolated
     private static func screen(containing frame: CGRect, in screens: [ScreenInfo]) -> ScreenInfo? {
-        let center = CGPoint(x: frame.midX, y: frame.midY)
-        if let screen = screens.first(where: { $0.frame.contains(center) }) {
+        let anchor = CGPoint(x: frame.maxX - 1, y: frame.midY)
+        if let screen = screens.first(where: { $0.frame.contains(anchor) }) {
             return screen
         }
+        let rightSlice = CGRect(
+            x: frame.maxX - 100,
+            y: frame.minY,
+            width: 100,
+            height: frame.height
+        )
         return screens.max { lhs, rhs in
-            Self.intersectionArea(lhs.frame, frame) < Self.intersectionArea(rhs.frame, frame)
+            Self.intersectionArea(lhs.frame, rightSlice) < Self.intersectionArea(rhs.frame, rightSlice)
         }
     }
 
