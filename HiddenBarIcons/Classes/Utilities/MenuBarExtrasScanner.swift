@@ -223,6 +223,12 @@ final class MenuBarExtrasScanner: ObservableObject {
 
     // MARK: - Public API
 
+    /// Whether the separator is currently stretched to its hide-other-items
+    /// length — i.e. the status bar is collapsed.
+    var isStatusBarCollapsed: Bool {
+        (self.separatorFrameProvider?()?.width ?? 0) > self.collapsedSeparatorWidthThreshold
+    }
+
     /// Returns the last cached scan and schedules an async refresh.
     /// Safe to call from the menu-open path — never blocks on AX calls.
     @discardableResult

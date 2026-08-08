@@ -40,6 +40,11 @@ struct PreferencesView: View {
     @State private var isAccessibilityTrusted = AccessibilityManager.isTrusted()
     private let accessibilityPollTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
+    /// Tracks a held ⌘ so the window can explain, right when the user tries
+    /// to ⌘-drag, why the pipe cannot be moved while the bar is collapsed.
+    @State private var isCommandHeld = false
+    private let modifierPollTimer = Timer.publish(every: 0.15, on: .main, in: .common).autoconnect()
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Icon and description
@@ -73,6 +78,20 @@ struct PreferencesView: View {
                         .font(.system(size: 10))
                     Text(
                         "The separator is in the last position — nothing is to its left, so it hides nothing. \u{2318}-drag icons to the left of the pipe to hide them."
+                    )
+                    .font(.system(size: 11))
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                .foregroundStyle(.red)
+                .padding(.top, 8)
+            }
+
+            if self.isCommandHeld, !self.isMenuOnlyModeEnabled, self.scanner.isStatusBarCollapsed {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 10))
+                    Text(
+                        "The bar is collapsed right now, so the separator pipe can't be seen or moved. Click the arrow in the menu bar to expand it first, then \u{2318}-drag."
                     )
                     .font(.system(size: 11))
                     .fixedSize(horizontal: false, vertical: true)
@@ -192,6 +211,12 @@ struct PreferencesView: View {
         .frame(width: 640)
         .onAppear {
             NotificationCenter.default.post(name: .warmHiddenAppsCache, object: nil)
+        }
+        .onReceive(self.modifierPollTimer) { _ in
+            let held = NSEvent.modifierFlags.contains(.command)
+            if held != self.isCommandHeld {
+                self.isCommandHeld = held
+            }
         }
         .onReceive(self.accessibilityPollTimer) { _ in
             self.isAccessibilityTrusted = AccessibilityManager.isTrusted()

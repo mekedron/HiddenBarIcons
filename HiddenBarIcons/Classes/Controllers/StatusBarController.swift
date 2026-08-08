@@ -370,6 +370,11 @@ class StatusBarController: NSObject {
             let imageView = NSImageView()
             imageView.image = NSImage(named: "separator")
             imageView.imageScaling = .scaleNone
+            // The pipe asset is a template image; a plain NSImageView renders
+            // templates black unless tinted (status bar buttons tint them
+            // automatically, subviews don't) — black on a dark menu bar is
+            // invisible.
+            imageView.contentTintColor = .labelColor
             imageView.autoresizingMask = [.minXMargin, .height]
             button.addSubview(imageView)
             self.collapsedPipeOverlay = imageView
