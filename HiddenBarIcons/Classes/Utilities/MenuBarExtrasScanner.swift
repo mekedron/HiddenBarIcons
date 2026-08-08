@@ -435,7 +435,6 @@ final class MenuBarExtrasScanner {
             default: continue
             }
             if let bid = app.bundleIdentifier, bid == ownBundleId { continue }
-            if excludeSystemApps, app.bundleIdentifier?.hasPrefix("com.apple.") == true { continue }
 
             let appElement = AXUIElementCreateApplication(app.pid)
             AXUIElementSetMessagingTimeout(appElement, axMessagingTimeout)
@@ -446,6 +445,13 @@ final class MenuBarExtrasScanner {
             ) else { continue }
             let extrasElement = extras as! AXUIElement
             freshPids.insert(app.pid)
+
+            // Filtered apps are still probed and recorded in the PID cache
+            // above — dropping them before that point would let a full scan
+            // purge them from the cache, and incremental scans (which only
+            // revisit known PIDs) could then never rediscover them after the
+            // filter is switched back off.
+            if excludeSystemApps, app.bundleIdentifier?.hasPrefix("com.apple.") == true { continue }
 
             guard let childrenValue = Self.copyAttribute(
                 element: extrasElement,
