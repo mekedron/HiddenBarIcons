@@ -9,6 +9,7 @@ import ApplicationServices
 /// Identifies a status bar item belonging to another app that is currently
 /// pushed off-screen by the separator.
 struct HiddenStatusItem {
+    let pid: pid_t
     let appName: String
     let bundleIdentifier: String?
     let icon: NSImage?
@@ -47,6 +48,7 @@ final class MenuBarExtrasScanner {
     var onCacheUpdated: (@MainActor () -> Void)?
 
     private var warmObserver: NSObjectProtocol?
+    private var workspaceObservers: [NSObjectProtocol] = []
 
     /// Last successful scan result. Reads from this are O(1) and never block.
     private(set) var cachedHidden: [HiddenStatusItem] = []
@@ -54,6 +56,10 @@ final class MenuBarExtrasScanner {
     private var refreshTask: Task<Void, Never>?
     private var pidsWithExtras: Set<pid_t> = []
     private var lastFullScanAt: Date?
+    /// Set when the running-apps list changes; the next scan then re-discovers
+    /// every app instead of only known PIDs, because a relaunched app (e.g. a
+    /// dev build) comes back under a new PID that incremental scans skip.
+    private var needsFullRescan = false
     private var appIconCache: [String: NSImage] = [:]
 
     private let axMessagingTimeout: Float = 0.2 // seconds per element
@@ -131,12 +137,51 @@ final class MenuBarExtrasScanner {
                 self?.warmCacheInBackground()
             }
         }
+
+        let workspaceCenter = NSWorkspace.shared.notificationCenter
+        let appListNotifications = [
+            NSWorkspace.didLaunchApplicationNotification,
+            NSWorkspace.didTerminateApplicationNotification,
+        ]
+        for name in appListNotifications {
+            self.workspaceObservers.append(workspaceCenter.addObserver(
+                forName: name,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                let terminated = notification.name == NSWorkspace.didTerminateApplicationNotification
+                let pid = (notification.userInfo?[NSWorkspace.applicationUserInfoKey]
+                    as? NSRunningApplication)?.processIdentifier
+                Task { @MainActor in
+                    self?.handleAppListChanged(terminatedPid: terminated ? pid : nil)
+                }
+            })
+        }
     }
 
     deinit {
         if let warmObserver {
             NotificationCenter.default.removeObserver(warmObserver)
         }
+        for observer in workspaceObservers {
+            NSWorkspace.shared.notificationCenter.removeObserver(observer)
+        }
+    }
+
+    /// Keeps the cache in step with app launches and terminations, so the menu
+    /// doesn't offer dead entries after an app relaunches (common during
+    /// development, where every build restarts the app under a new PID).
+    private func handleAppListChanged(terminatedPid: pid_t?) {
+        self.needsFullRescan = true
+        if let pid = terminatedPid {
+            self.pidsWithExtras.remove(pid)
+            let countBefore = self.cachedHidden.count
+            self.cachedHidden.removeAll { $0.pid == pid }
+            if self.cachedHidden.count != countBefore {
+                self.onCacheUpdated?()
+            }
+        }
+        self.scheduleRefreshIfNeeded()
     }
 
     // MARK: - Public API
@@ -166,7 +211,38 @@ final class MenuBarExtrasScanner {
     // MARK: - Open
 
     func openMenu(_ item: HiddenStatusItem, action: HiddenAppOpenAction) {
-        self.performAfterExpand(item: item, action: action)
+        Task { @MainActor in
+            let resolved = await self.resolveIfStale(item)
+            self.performAfterExpand(item: resolved, action: action)
+        }
+    }
+
+    /// A cached `AXUIElement` dies with its owning process — e.g. a dev app
+    /// relaunched by a new build keeps its menu row but the element no longer
+    /// answers AX queries, so a click silently does nothing. When that happens,
+    /// force a full rescan and re-match the entry by bundle id and name so the
+    /// click lands on the live replacement.
+    private func resolveIfStale(_ item: HiddenStatusItem) async -> HiddenStatusItem {
+        if Self.isElementAlive(item.element) { return item }
+
+        DZLog("openMenu: stale AX element for \(item.appName), rescanning")
+        self.scheduleRefreshIfNeeded(forceFullScan: true, cancelExisting: true)
+        if let task = self.refreshTask {
+            await task.value
+        }
+
+        let replacement = self.cachedHidden.first {
+            $0.bundleIdentifier == item.bundleIdentifier && $0.appName == item.appName
+        } ?? self.cachedHidden.first {
+            $0.bundleIdentifier != nil && $0.bundleIdentifier == item.bundleIdentifier
+        }
+        return replacement ?? item
+    }
+
+    nonisolated private static func isElementAlive(_ element: AXUIElement) -> Bool {
+        AXUIElementSetMessagingTimeout(element, 0.2)
+        var value: CFTypeRef?
+        return AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &value) == .success
     }
 
     // MARK: - Refresh scheduling
@@ -200,8 +276,14 @@ final class MenuBarExtrasScanner {
         let pidsCache = self.pidsWithExtras
         let lastFullScanAt = self.lastFullScanAt
         let needsFullScan = forceFullScan
+            || self.needsFullRescan
             || pidsCache.isEmpty
             || (lastFullScanAt.map { Date().timeIntervalSince($0) > self.fullRescanInterval } ?? true)
+        // The flag is consumed by the scan we are about to launch; an app-list
+        // change arriving mid-scan sets it again and re-schedules on completion.
+        if needsFullScan {
+            self.needsFullRescan = false
+        }
         let timeout = self.axMessagingTimeout
         let menuBarYTolerance = self.menuBarYTolerance
         let ownBundleId = Bundle.main.bundleIdentifier
@@ -232,11 +314,15 @@ final class MenuBarExtrasScanner {
         fullScan: Bool,
         cancelled: Bool
     ) {
-        if !cancelled {
-            self.applyScanResult(result, fullScan: fullScan)
-            self.onCacheUpdated?()
-        }
+        // A cancelled task has been replaced: `refreshTask` already points at
+        // its successor, so it must not clear the slot on the way out.
+        guard !cancelled else { return }
+        self.applyScanResult(result, fullScan: fullScan)
+        self.onCacheUpdated?()
         self.refreshTask = nil
+        if self.needsFullRescan {
+            self.scheduleRefreshIfNeeded()
+        }
     }
 
     private func applyScanResult(_ result: ScanResult, fullScan: Bool) {
@@ -256,6 +342,7 @@ final class MenuBarExtrasScanner {
         self.cachedHidden = result.rawHidden.map { raw in
             let icon = appsByPid[raw.pid].flatMap { self.icon(for: $0) }
             return HiddenStatusItem(
+                pid: raw.pid,
                 appName: raw.displayName,
                 bundleIdentifier: raw.bundleIdentifier,
                 icon: icon,

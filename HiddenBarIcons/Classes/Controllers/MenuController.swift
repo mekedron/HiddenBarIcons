@@ -14,9 +14,25 @@ class MenuController: NSObject, NSMenuItemValidation {
     private var preferencesWindow: NSWindow?
     private let updaterController: SPUStandardUpdaterController
     var displayModeManager: DisplayModeManager?
-    var hiddenAppsScanner: MenuBarExtrasScanner?
+
+    var hiddenAppsScanner: MenuBarExtrasScanner? {
+        didSet {
+            self.hiddenAppsScanner?.onCacheUpdated = { [weak self] in
+                self?.handleHiddenAppsCacheUpdated()
+            }
+        }
+    }
+
+    /// The context menu currently being tracked, if any. Background scan
+    /// results are applied to it in place, so the list self-heals while open.
+    private weak var activeContextMenu: NSMenu?
+    /// The snapshot the visible rows were built from; used to skip pointless
+    /// rebuilds (which reset hover highlight) when a scan returns no changes.
+    private var displayedHiddenItems: [HiddenStatusItem] = []
 
     private static let hiddenAppItemTag = 8888
+    private static let hiddenAppsSeparatorTag = 8889
+    private static let refreshItemIdentifier = NSUserInterfaceItemIdentifier("hbi.refreshHiddenApps")
     private static let hiddenAppMenuItemMinWidth: CGFloat = 240
     private static let hiddenAppMenuItemMaxWidth: CGFloat = 420
 
@@ -31,6 +47,7 @@ class MenuController: NSObject, NSMenuItemValidation {
 
     func createContextMenu() -> NSMenu {
         let menu = NSMenu()
+        self.activeContextMenu = menu
 
         self.addHiddenAppsItemsIfNeeded(to: menu)
 
@@ -93,14 +110,49 @@ class MenuController: NSObject, NSMenuItemValidation {
         DZLog("contextMenu: hiddenApps enabled=\(enabled) trusted=\(trusted) scanner=\(self.hiddenAppsScanner != nil)")
         guard enabled, trusted, let scanner = self.hiddenAppsScanner else { return }
 
-        let refreshItem = self.makeRefreshMenuItem()
-        menu.addItem(refreshItem)
-
         // Render from the most recent cache; the scanner refreshes itself
-        // off the main thread so this method never blocks on AX calls.
+        // off the main thread so this method never blocks on AX calls. When
+        // the refresh lands, `handleHiddenAppsCacheUpdated` rewrites the rows
+        // of the still-open menu in place.
         let hidden = scanner.currentHidden()
         DZLog("contextMenu: scanner returned \(hidden.count) cached item(s)")
+
+        let refreshItem = self.makeRefreshMenuItem(width: Self.hiddenAppMenuItemWidth(for: hidden))
+        menu.addItem(refreshItem)
+
+        self.displayedHiddenItems = hidden
         self.insertHiddenAppItems(hidden, into: menu, after: refreshItem)
+    }
+
+    /// Applies a finished background scan to the open context menu: rows are
+    /// swapped in place (NSMenu re-lays out while tracking), so neither the
+    /// Refresh row nor an automatic refresh ever has to close the menu.
+    private func handleHiddenAppsCacheUpdated() {
+        guard let menu = self.activeContextMenu,
+              let scanner = self.hiddenAppsScanner,
+              let refreshItem = menu.items.first(where: { $0.identifier == Self.refreshItemIdentifier })
+        else { return }
+
+        (refreshItem.view as? RefreshMenuItemView)?.setRefreshing(false)
+
+        let fresh = scanner.cachedHidden
+        guard !Self.sameHiddenItems(fresh, self.displayedHiddenItems) else { return }
+        DZLog("contextMenu: live-updating open menu with \(fresh.count) item(s)")
+
+        for item in menu.items
+            where item.tag == Self.hiddenAppItemTag || item.tag == Self.hiddenAppsSeparatorTag
+        {
+            menu.removeItem(item)
+        }
+        self.displayedHiddenItems = fresh
+        self.insertHiddenAppItems(fresh, into: menu, after: refreshItem)
+    }
+
+    private static func sameHiddenItems(_ lhs: [HiddenStatusItem], _ rhs: [HiddenStatusItem]) -> Bool {
+        guard lhs.count == rhs.count else { return false }
+        return zip(lhs, rhs).allSatisfy { a, b in
+            a.pid == b.pid && a.appName == b.appName && CFEqual(a.element, b.element)
+        }
     }
 
     private func insertHiddenAppItems(
@@ -124,7 +176,9 @@ class MenuController: NSObject, NSMenuItemValidation {
         }
 
         if !items.isEmpty {
-            menu.insertItem(NSMenuItem.separator(), at: insertIndex)
+            let separator = NSMenuItem.separator()
+            separator.tag = Self.hiddenAppsSeparatorTag
+            menu.insertItem(separator, at: insertIndex)
         }
     }
 
@@ -171,14 +225,14 @@ class MenuController: NSObject, NSMenuItemValidation {
         return min(max(Self.hiddenAppMenuItemMinWidth, titleWidth + 52), Self.hiddenAppMenuItemMaxWidth)
     }
 
-    private func makeRefreshMenuItem() -> NSMenuItem {
-        let refreshItem = NSMenuItem(
-            title: String(localized: "Refresh hidden apps"),
-            action: #selector(self.refreshHiddenApps(_:)),
-            keyEquivalent: ""
-        )
-        refreshItem.target = self
-        refreshItem.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: nil)
+    private func makeRefreshMenuItem(width: CGFloat) -> NSMenuItem {
+        let refreshItem = NSMenuItem()
+        refreshItem.identifier = Self.refreshItemIdentifier
+        let view = RefreshMenuItemView(width: width)
+        view.onRefresh = { [weak self] in
+            self?.hiddenAppsScanner?.refreshHidden()
+        }
+        refreshItem.view = view
         return refreshItem
     }
 
@@ -225,11 +279,6 @@ class MenuController: NSObject, NSMenuItemValidation {
     @objc
     private func checkForUpdates(_: Any?) {
         self.updaterController.checkForUpdates(nil)
-    }
-
-    @objc
-    private func refreshHiddenApps(_: Any?) {
-        self.hiddenAppsScanner?.refreshHidden()
     }
 
     @objc

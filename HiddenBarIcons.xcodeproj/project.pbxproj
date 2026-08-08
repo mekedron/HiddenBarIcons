@@ -24,6 +24,7 @@
 		A5F3BD99EE21A0AC1ABB25B9 /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB9ACB193E4EB6EE3DA19835 /* PreferencesView.swift */; };
 		AFE9C9C8F5C4AD4842A700CA /* HotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A571498FEDBF68869E09F92 /* HotkeyManager.swift */; };
 		B1B9728FDE712A014A97ED82 /* AccessibilityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30B55847697510D15806DD5 /* AccessibilityManager.swift */; };
+		C310BD351AD40AABDFDD08BB /* RefreshMenuItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5CE26E0CAE4A39F2FAC0A93 /* RefreshMenuItemView.swift */; };
 		F517D220A34B5F176649138B /* DisplayModeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D6156B2150345B9052547A /* DisplayModeManager.swift */; };
 /* End PBXBuildFile section */
 
@@ -39,6 +40,7 @@
 		9037455644D4002E4B773896 /* HiddenBarIcons.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HiddenBarIcons.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9F5DC0FD1BE72EAF950ADC65 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A004E4458CCC47F23D306D77 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		B5CE26E0CAE4A39F2FAC0A93 /* RefreshMenuItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefreshMenuItemView.swift; sourceTree = "<group>"; };
 		C3407BE6917B05B8ED67C70F /* ActivationPolicyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivationPolicyManager.swift; sourceTree = "<group>"; };
 		CA56DFE3CFC5DCBEE728205F /* HiddenAppMenuItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HiddenAppMenuItemView.swift; sourceTree = "<group>"; };
 		D0A995755B4280E98C419217 /* DeviceInformation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceInformation.swift; sourceTree = "<group>"; };
@@ -105,6 +107,7 @@
 			children = (
 				CA56DFE3CFC5DCBEE728205F /* HiddenAppMenuItemView.swift */,
 				EB9ACB193E4EB6EE3DA19835 /* PreferencesView.swift */,
+				B5CE26E0CAE4A39F2FAC0A93 /* RefreshMenuItemView.swift */,
 				D1A1B91D724741ACB7FD0ABB /* StatusBarMockView.swift */,
 			);
 			path = Views;
@@ -237,6 +240,7 @@
 				1969C89E9793CAE9FF3E4EF5 /* MenuController.swift in Sources */,
 				20D8C44373491D6C6D80D793 /* Preferences.swift in Sources */,
 				A5F3BD99EE21A0AC1ABB25B9 /* PreferencesView.swift in Sources */,
+				C310BD351AD40AABDFDD08BB /* RefreshMenuItemView.swift in Sources */,
 				795CA4BA0A9DA9D5B40B1120 /* StatusBarController.swift in Sources */,
 				163C9E614540BD639701370C /* StatusBarMockView.swift in Sources */,
 				4B8234ECB90F7A34B939B31B /* main.swift in Sources */,
