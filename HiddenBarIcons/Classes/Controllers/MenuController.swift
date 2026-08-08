@@ -306,7 +306,7 @@ class MenuController: NSObject, NSMenuItemValidation {
         NSApp.activate(ignoringOtherApps: true)
 
         if self.preferencesWindow == nil {
-            let contentView = PreferencesView()
+            let contentView = PreferencesView(scanner: self.hiddenAppsScanner ?? MenuBarExtrasScanner())
             let hostingController = NSHostingController(rootView: contentView)
 
             let window = NSWindow(contentViewController: hostingController)

@@ -35,7 +35,13 @@ private struct SendableAXElement: @unchecked Sendable {
 /// Enumerates other apps' menu bar extras via the Accessibility API and
 /// simulates clicks on the off-screen ones.
 @MainActor
-final class MenuBarExtrasScanner {
+final class MenuBarExtrasScanner: ObservableObject {
+    /// Whether the last collapsed-state scan found zero hidden items — i.e.
+    /// the separator sits at the far end with nothing to its left, so
+    /// collapsing hides nothing. nil until such a scan has run. Only scans
+    /// taken while the separator was stretched update this: an expanded bar
+    /// trivially hides nothing and must not raise the warning.
+    @Published private(set) var separatorIsHidingNothing: Bool?
     /// Invoked when a click/showMenu wants the status bar to be expanded first.
     var expandRequested: (@MainActor () -> Void)?
 
@@ -146,6 +152,10 @@ final class MenuBarExtrasScanner {
 
     fileprivate struct ScanResult: Sendable {
         let rawHidden: [RawHiddenItem]
+        /// Items actually off-screen, counted before the visible/system
+        /// filters — the "does the separator hide anything" signal.
+        let hiddenCount: Int
+        let scannedWhileCollapsed: Bool
         let freshPidsWithExtras: Set<pid_t>
         let elapsed: TimeInterval
         let appsChecked: Int
@@ -337,7 +347,8 @@ final class MenuBarExtrasScanner {
                 axMessagingTimeout: timeout,
                 ownBundleId: ownBundleId,
                 includeVisibleItems: showAllApps,
-                excludeSystemApps: hideSystemApps
+                excludeSystemApps: hideSystemApps,
+                scannedWhileCollapsed: isStatusBarCollapsed
             )
             let cancelled = Task.isCancelled
             await self?.handleScanCompletion(
@@ -391,9 +402,14 @@ final class MenuBarExtrasScanner {
             )
         }
 
+        if result.scannedWhileCollapsed {
+            self.separatorIsHidingNothing = (result.hiddenCount == 0)
+        }
+
         DZLog(
             "scanHidden: checked=\(result.appsChecked) " +
-                "cached=\(self.pidsWithExtras.count) hidden=\(result.rawHidden.count) " +
+                "cached=\(self.pidsWithExtras.count) listed=\(result.rawHidden.count) " +
+                "hidden=\(result.hiddenCount) " +
                 "bands=\(result.reference.bands.map(\.menuBarYRange)) full=\(fullScan) " +
                 "elapsed=\(String(format: "%.0fms", result.elapsed * 1000))"
         )
@@ -412,7 +428,8 @@ final class MenuBarExtrasScanner {
         axMessagingTimeout: Float,
         ownBundleId: String?,
         includeVisibleItems: Bool,
-        excludeSystemApps: Bool
+        excludeSystemApps: Bool,
+        scannedWhileCollapsed: Bool
     ) -> ScanResult {
         let started = Date()
         let reference = Self.menuBarReference(
@@ -427,6 +444,7 @@ final class MenuBarExtrasScanner {
 
         var results: [RawHiddenItem] = []
         var freshPids: Set<pid_t> = []
+        var hiddenCount = 0
 
         for app in appsToCheck {
             guard app.pid > 0 else { continue }
@@ -446,12 +464,13 @@ final class MenuBarExtrasScanner {
             let extrasElement = extras as! AXUIElement
             freshPids.insert(app.pid)
 
-            // Filtered apps are still probed and recorded in the PID cache
-            // above — dropping them before that point would let a full scan
-            // purge them from the cache, and incremental scans (which only
-            // revisit known PIDs) could then never rediscover them after the
-            // filter is switched back off.
-            if excludeSystemApps, app.bundleIdentifier?.hasPrefix("com.apple.") == true { continue }
+            // Filtered apps are still probed, recorded in the PID cache and
+            // counted below — a full scan must not purge them from the cache
+            // (incremental scans only revisit known PIDs and could never
+            // rediscover them), and a hidden system item still means the
+            // separator is hiding something.
+            let isFilteredSystemApp = excludeSystemApps
+                && app.bundleIdentifier?.hasPrefix("com.apple.") == true
 
             guard let childrenValue = Self.copyAttribute(
                 element: extrasElement,
@@ -473,7 +492,13 @@ final class MenuBarExtrasScanner {
                 let inMenuBarBand = reference.bands
                     .contains { $0.menuBarYRange.contains(position.y) }
                 guard inMenuBarBand else { continue }
-                guard includeVisibleItems || reference.isHidden(position) else { continue }
+
+                let isHidden = reference.isHidden(position)
+                if isHidden {
+                    hiddenCount += 1
+                }
+                guard !isFilteredSystemApp else { continue }
+                guard includeVisibleItems || isHidden else { continue }
 
                 let label = Self.readLabel(element: child)
                 let displayName: String
@@ -508,6 +533,8 @@ final class MenuBarExtrasScanner {
 
         return ScanResult(
             rawHidden: results,
+            hiddenCount: hiddenCount,
+            scannedWhileCollapsed: scannedWhileCollapsed,
             freshPidsWithExtras: freshPids,
             elapsed: Date().timeIntervalSince(started),
             appsChecked: appsToCheck.count,

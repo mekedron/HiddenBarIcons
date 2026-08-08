@@ -32,6 +32,11 @@ struct PreferencesView: View {
     // Login-item state is owned by the system (SMAppService), not @AppStorage.
     @StateObject private var launchAtLogin = LaunchAtLoginManager()
 
+    /// The app-wide scanner instance; publishes whether the separator
+    /// currently hides anything so the window can warn about a useless
+    /// last-position separator.
+    @ObservedObject var scanner: MenuBarExtrasScanner
+
     @State private var isAccessibilityTrusted = AccessibilityManager.isTrusted()
     private let accessibilityPollTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
@@ -61,6 +66,20 @@ struct PreferencesView: View {
 
             // Status bar mock
             StatusBarMockView()
+
+            if !self.isMenuOnlyModeEnabled, self.scanner.separatorIsHidingNothing == true {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 10))
+                    Text(
+                        "The separator is in the last position — nothing is to its left, so it hides nothing. \u{2318}-drag icons to the left of the pipe to hide them."
+                    )
+                    .font(.system(size: 11))
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                .foregroundStyle(.orange)
+                .padding(.top, 8)
+            }
 
             Spacer()
 
@@ -254,5 +273,5 @@ struct PreferencesView: View {
 }
 
 #Preview {
-    PreferencesView()
+    PreferencesView(scanner: MenuBarExtrasScanner())
 }
