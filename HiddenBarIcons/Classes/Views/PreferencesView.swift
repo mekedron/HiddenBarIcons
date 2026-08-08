@@ -132,7 +132,7 @@ struct PreferencesView: View {
             .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
-        .frame(width: 640, height: 520)
+        .frame(width: 640, height: 550)
         .onReceive(self.accessibilityPollTimer) { _ in
             self.isAccessibilityTrusted = AccessibilityManager.isTrusted()
             self.launchAtLogin.refresh()
