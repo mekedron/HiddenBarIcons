@@ -72,9 +72,34 @@ final class MenuBarExtrasScanner {
     /// length (≈ 10000). Used to detect "collapsed" (= items hidden) state.
     private let collapsedSeparatorWidthThreshold: CGFloat = 1000
 
+    /// Per-display menu-bar geometry, CG (top-left origin) coordinates.
+    /// Real status windows migrate between displays following the active menu
+    /// bar, and each app's window migrates independently — so a scan can see
+    /// the separator on one display and other apps' items on another. Items
+    /// are therefore classified against the band of whichever display they are
+    /// on, never against the separator's display alone.
     fileprivate struct MenuBarReference: Sendable {
-        let cutoffX: CGFloat
-        let yRange: ClosedRange<CGFloat>
+        struct ScreenBand: Sendable {
+            let cgBounds: CGRect
+            let menuBarYRange: ClosedRange<CGFloat>
+        }
+
+        let bands: [ScreenBand]
+
+        /// A status item is hidden when its y sits in some display's menu-bar
+        /// band but its x falls outside the horizontal extent of every such
+        /// display — i.e. the separator pushed it past the screen edge. Only
+        /// y-matching displays count: a display's menu bar never overlaps
+        /// another display's rectangle, so a stray x inside a *different*
+        /// screen (possible with side-by-side displays offset vertically)
+        /// must not make the item look visible.
+        func isHidden(_ position: CGPoint) -> Bool {
+            let matching = self.bands.filter { $0.menuBarYRange.contains(position.y) }
+            guard !matching.isEmpty else { return false }
+            return !matching.contains { band in
+                position.x >= band.cgBounds.minX && position.x < band.cgBounds.maxX
+            }
+        }
     }
 
     fileprivate struct AppSnapshot: Sendable {
@@ -353,7 +378,7 @@ final class MenuBarExtrasScanner {
         DZLog(
             "scanHidden: checked=\(result.appsChecked) " +
                 "cached=\(self.pidsWithExtras.count) hidden=\(result.rawHidden.count) " +
-                "cutoffX=\(result.reference.cutoffX) yRange=\(result.reference.yRange) full=\(fullScan) " +
+                "bands=\(result.reference.bands.map(\.menuBarYRange)) full=\(fullScan) " +
                 "elapsed=\(String(format: "%.0fms", result.elapsed * 1000))"
         )
     }
@@ -417,7 +442,7 @@ final class MenuBarExtrasScanner {
                 // menu bar (Control Center exposes inactive widgets at (0, 1692)).
                 guard let size = Self.readSize(element: child),
                       size.width > 0, size.height > 0,
-                      Self.isHiddenStatusItem(position: position, reference: reference)
+                      reference.isHidden(position)
                 else { continue }
 
                 let label = Self.readLabel(element: child)
@@ -455,63 +480,18 @@ final class MenuBarExtrasScanner {
         screens: [ScreenInfo],
         menuBarYTolerance: CGFloat
     ) -> MenuBarReference {
-        guard let separatorFrame,
-              let screen = Self.screen(containing: separatorFrame, in: screens),
-              let cgBounds = screen.cgBounds
-        else {
-            return MenuBarReference(
-                cutoffX: separatorFrame?.minX ?? 0,
-                yRange: 0 ... 40
+        let fallbackHeight = separatorFrame?.height ?? 24
+        let bands = screens.compactMap { screen -> MenuBarReference.ScreenBand? in
+            guard let cgBounds = screen.cgBounds else { return nil }
+            let topInset = max(0, screen.frame.maxY - screen.visibleFrame.maxY)
+            let menuBarHeight = max(topInset, fallbackHeight)
+            return MenuBarReference.ScreenBand(
+                cgBounds: cgBounds,
+                menuBarYRange: (cgBounds.minY - menuBarYTolerance)
+                    ... (cgBounds.minY + menuBarHeight + menuBarYTolerance)
             )
         }
-
-        let topInset = max(0, screen.frame.maxY - screen.visibleFrame.maxY)
-        let menuBarHeight = max(topInset, separatorFrame.height)
-        let minY = cgBounds.minY - menuBarYTolerance
-        let maxY = cgBounds.minY + menuBarHeight + menuBarYTolerance
-
-        return MenuBarReference(
-            cutoffX: separatorFrame.minX,
-            yRange: minY ... maxY
-        )
-    }
-
-    /// Picks the screen the separator actually sits on. The collapsed
-    /// separator is ~10000 pt wide and overflows far past the left edge of its
-    /// display — on a multi-monitor layout its center can land on a neighbor
-    /// screen, which would anchor hidden-item detection to the wrong menu bar
-    /// (empty list on the secondary display). The status item grows leftward
-    /// from its slot, so the frame's RIGHT edge is the reliable anchor.
-    nonisolated
-    private static func screen(containing frame: CGRect, in screens: [ScreenInfo]) -> ScreenInfo? {
-        let anchor = CGPoint(x: frame.maxX - 1, y: frame.midY)
-        if let screen = screens.first(where: { $0.frame.contains(anchor) }) {
-            return screen
-        }
-        let rightSlice = CGRect(
-            x: frame.maxX - 100,
-            y: frame.minY,
-            width: 100,
-            height: frame.height
-        )
-        return screens.max { lhs, rhs in
-            Self.intersectionArea(lhs.frame, rightSlice) < Self.intersectionArea(rhs.frame, rightSlice)
-        }
-    }
-
-    nonisolated
-    private static func intersectionArea(_ lhs: CGRect, _ rhs: CGRect) -> CGFloat {
-        let intersection = lhs.intersection(rhs)
-        guard !intersection.isNull else { return 0 }
-        return intersection.width * intersection.height
-    }
-
-    nonisolated
-    private static func isHiddenStatusItem(
-        position: CGPoint,
-        reference: MenuBarReference
-    ) -> Bool {
-        position.x < reference.cutoffX && reference.yRange.contains(position.y)
+        return MenuBarReference(bands: bands)
     }
 
     nonisolated
