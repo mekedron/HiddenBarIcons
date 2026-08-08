@@ -20,6 +20,8 @@ struct PreferencesView: View {
         .showHiddenAppsInMenu
     @AppStorage(PreferenceKeys.showAllAppsInMenu) private var showAllAppsInMenu = PreferenceDefaults
         .showAllAppsInMenu
+    @AppStorage(PreferenceKeys.hideSystemAppsInMenu) private var hideSystemAppsInMenu = PreferenceDefaults
+        .hideSystemAppsInMenu
     @AppStorage(PreferenceKeys.allowRightClickHiddenApps) private var allowRightClickHiddenApps = PreferenceDefaults
         .allowRightClickHiddenApps
     @AppStorage(PreferenceKeys.hideSeparatorWhenExpanded) private var hideSeparatorWhenExpanded = PreferenceDefaults
@@ -166,7 +168,7 @@ struct PreferencesView: View {
             .padding(.bottom, 20)
         }
         .padding(.horizontal, 20)
-        .frame(width: 640, height: 720)
+        .frame(width: 640, height: 750)
         .onReceive(self.accessibilityPollTimer) { _ in
             self.isAccessibilityTrusted = AccessibilityManager.isTrusted()
             self.launchAtLogin.refresh()
@@ -206,6 +208,14 @@ struct PreferencesView: View {
                 .disabled(!self.showHiddenAppsInMenu)
                 .padding(.leading, 20)
                 .onChange(of: self.showAllAppsInMenu) { _, _ in
+                    NotificationCenter.default.post(name: .warmHiddenAppsCache, object: nil)
+                }
+
+            Toggle("Hide system items (Control Center, Spotlight, …)", isOn: self.$hideSystemAppsInMenu)
+                .font(.system(size: 13))
+                .disabled(!self.showHiddenAppsInMenu)
+                .padding(.leading, 20)
+                .onChange(of: self.hideSystemAppsInMenu) { _, _ in
                     NotificationCenter.default.post(name: .warmHiddenAppsCache, object: nil)
                 }
 

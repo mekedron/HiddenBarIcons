@@ -13,6 +13,7 @@ enum PreferenceKeys {
     static let isFullExpandEnabled = "isFullExpandEnabled"
     static let showHiddenAppsInMenu = "showHiddenAppsInMenu"
     static let showAllAppsInMenu = "showAllAppsInMenu"
+    static let hideSystemAppsInMenu = "hideSystemAppsInMenu"
     static let allowRightClickHiddenApps = "allowRightClickHiddenApps"
     static let hideSeparatorWhenExpanded = "hideSeparatorWhenExpanded"
     static let isMenuOnlyModeEnabled = "isMenuOnlyModeEnabled"
@@ -26,6 +27,7 @@ enum PreferenceDefaults {
     static let isFullExpandEnabled = true
     static let showHiddenAppsInMenu = true
     static let showAllAppsInMenu = false
+    static let hideSystemAppsInMenu = false
     static let allowRightClickHiddenApps = true
     static let hideSeparatorWhenExpanded = false
     static let isMenuOnlyModeEnabled = false

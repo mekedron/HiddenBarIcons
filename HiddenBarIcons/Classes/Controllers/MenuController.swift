@@ -312,7 +312,7 @@ class MenuController: NSObject, NSMenuItemValidation {
             let window = NSWindow(contentViewController: hostingController)
             window.title = String(localized: "Welcome to HiddenBarIcons")
             window.styleMask = [.titled, .closable]
-            window.setContentSize(NSSize(width: 640, height: 720))
+            window.setContentSize(NSSize(width: 640, height: 750))
             window.center()
 
             self.preferencesWindow = window

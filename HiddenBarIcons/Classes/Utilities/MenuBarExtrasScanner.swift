@@ -299,6 +299,9 @@ final class MenuBarExtrasScanner {
         let showAllApps = UserDefaults.standard
             .object(forKey: PreferenceKeys.showAllAppsInMenu) as? Bool
             ?? PreferenceDefaults.showAllAppsInMenu
+        let hideSystemApps = UserDefaults.standard
+            .object(forKey: PreferenceKeys.hideSystemAppsInMenu) as? Bool
+            ?? PreferenceDefaults.hideSystemAppsInMenu
         let isStatusBarCollapsed = (separatorFrame?.width ?? 0)
             > self.collapsedSeparatorWidthThreshold
         guard isStatusBarCollapsed || menuOnlyMode || showAllApps else {
@@ -333,7 +336,8 @@ final class MenuBarExtrasScanner {
                 menuBarYTolerance: menuBarYTolerance,
                 axMessagingTimeout: timeout,
                 ownBundleId: ownBundleId,
-                includeVisibleItems: showAllApps
+                includeVisibleItems: showAllApps,
+                excludeSystemApps: hideSystemApps
             )
             let cancelled = Task.isCancelled
             await self?.handleScanCompletion(
@@ -407,7 +411,8 @@ final class MenuBarExtrasScanner {
         menuBarYTolerance: CGFloat,
         axMessagingTimeout: Float,
         ownBundleId: String?,
-        includeVisibleItems: Bool
+        includeVisibleItems: Bool,
+        excludeSystemApps: Bool
     ) -> ScanResult {
         let started = Date()
         let reference = Self.menuBarReference(
@@ -430,6 +435,7 @@ final class MenuBarExtrasScanner {
             default: continue
             }
             if let bid = app.bundleIdentifier, bid == ownBundleId { continue }
+            if excludeSystemApps, app.bundleIdentifier?.hasPrefix("com.apple.") == true { continue }
 
             let appElement = AXUIElementCreateApplication(app.pid)
             AXUIElementSetMessagingTimeout(appElement, axMessagingTimeout)
