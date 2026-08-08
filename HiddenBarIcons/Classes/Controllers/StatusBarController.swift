@@ -143,7 +143,9 @@ class StatusBarController: NSObject {
 
         if isRightClick || isControlClick {
             // Show context menu on right-click or control-click
-            self.arrowItem.menu = self.menuController.createContextMenu()
+            let menu = self.menuController.createContextMenu()
+            menu.delegate = self
+            self.arrowItem.menu = menu
             self.arrowItem.button?.performClick(nil)
             self.arrowItem.menu = nil
         } else {
@@ -314,5 +316,21 @@ class StatusBarController: NSObject {
         let shouldShow = !self.hideSeparatorWhenExpanded || NSEvent.modifierFlags.contains(.command)
         self.applySeparatorVisible(shouldShow)
         self.updateCommandKeyPolling()
+    }
+}
+
+// MARK: - NSMenuDelegate
+
+extension StatusBarController: NSMenuDelegate {
+    /// Point the arrow down while the context menu is open, then restore the
+    /// direction matching the current collapsed/expanded state. Expand/collapse
+    /// actions triggered from the menu run after `menuDidClose` and set their
+    /// own arrow image, so the restore here can't clobber them.
+    func menuWillOpen(_: NSMenu) {
+        self.arrowItem.button?.image = NSImage(named: "menuOpen")
+    }
+
+    func menuDidClose(_: NSMenu) {
+        self.arrowItem.button?.image = NSImage(named: self.isCollapsed ? "expand" : "collapse")
     }
 }

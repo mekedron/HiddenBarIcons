@@ -3,9 +3,9 @@
 //  generate-icon.swift
 //  HiddenBarIcons
 //
-//  Renders the app icon (AppIcon.appiconset, 16–1024) and the three menu-bar
-//  template glyphs (separator / collapse / expand) directly with AppKit +
-//  CoreGraphics — no third-party tools. Re-run any time to regenerate:
+//  Renders the app icon (AppIcon.appiconset, 16–1024) and the menu-bar
+//  template glyphs (separator / collapse / expand / menuOpen) directly with
+//  AppKit + CoreGraphics — no third-party tools. Re-run any time to regenerate:
 //
 //      swift scripts/generate-icon.swift [path/to/Assets.xcassets]
 //
@@ -154,6 +154,25 @@ func drawChevron(_ s: CGFloat, pointingRight: Bool) {
     p.stroke()
 }
 
+/// Same chevron rotated to point down (axes swapped so stroke and proportions
+/// match the side-pointing variants). Shown while the context menu is open.
+func drawChevronDown(_ s: CGFloat) {
+    let lineWidth = s * 0.12
+    let halfW = s * 0.27
+    let halfH = s * 0.19
+    let cx = s / 2
+    let cy = s / 2
+    let p = NSBezierPath()
+    p.lineWidth = lineWidth
+    p.lineCapStyle = .round
+    p.lineJoinStyle = .round
+    p.move(to: NSPoint(x: cx - halfW, y: cy + halfH))
+    p.line(to: NSPoint(x: cx, y: cy - halfH))
+    p.line(to: NSPoint(x: cx + halfW, y: cy + halfH))
+    NSColor.black.setStroke()
+    p.stroke()
+}
+
 // MARK: - Emit AppIcon.appiconset
 
 let appIconDir = assetsURL.appendingPathComponent("AppIcon.appiconset")
@@ -210,6 +229,7 @@ func emitGlyph(_ name: String, _ draw: @escaping (CGFloat) -> Void) {
 emitGlyph("separator", drawSeparator)
 emitGlyph("collapse") { drawChevron($0, pointingRight: false) }
 emitGlyph("expand") { drawChevron($0, pointingRight: true) }
+emitGlyph("menuOpen", drawChevronDown)
 
 // MARK: - Top-level catalog metadata
 
