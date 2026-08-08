@@ -25,6 +25,7 @@
 		AFE9C9C8F5C4AD4842A700CA /* HotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A571498FEDBF68869E09F92 /* HotkeyManager.swift */; };
 		B1B9728FDE712A014A97ED82 /* AccessibilityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30B55847697510D15806DD5 /* AccessibilityManager.swift */; };
 		C310BD351AD40AABDFDD08BB /* RefreshMenuItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5CE26E0CAE4A39F2FAC0A93 /* RefreshMenuItemView.swift */; };
+		CAC9CB6EDD76DB0114739B85 /* SystemStatusItemCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6840B1CCB7CC25AF0AB55E3D /* SystemStatusItemCatalog.swift */; };
 		F517D220A34B5F176649138B /* DisplayModeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D6156B2150345B9052547A /* DisplayModeManager.swift */; };
 /* End PBXBuildFile section */
 
@@ -35,6 +36,7 @@
 		61A889CE5D9ED743DEAF80FB /* MenuController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuController.swift; sourceTree = "<group>"; };
 		64EC6C0465C634CEF0BB88EC /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		650F71C1C7C5FD3847DBB318 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
+		6840B1CCB7CC25AF0AB55E3D /* SystemStatusItemCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemStatusItemCatalog.swift; sourceTree = "<group>"; };
 		7D6E475B90171F86EBBB8DD5 /* LaunchAtLoginManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginManager.swift; sourceTree = "<group>"; };
 		8A571498FEDBF68869E09F92 /* HotkeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyManager.swift; sourceTree = "<group>"; };
 		9037455644D4002E4B773896 /* HiddenBarIcons.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HiddenBarIcons.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -82,6 +84,7 @@
 				7D6E475B90171F86EBBB8DD5 /* LaunchAtLoginManager.swift */,
 				650F71C1C7C5FD3847DBB318 /* Log.swift */,
 				226A42CBEAD4F51D899D0675 /* MenuBarExtrasScanner.swift */,
+				6840B1CCB7CC25AF0AB55E3D /* SystemStatusItemCatalog.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -243,6 +246,7 @@
 				C310BD351AD40AABDFDD08BB /* RefreshMenuItemView.swift in Sources */,
 				795CA4BA0A9DA9D5B40B1120 /* StatusBarController.swift in Sources */,
 				163C9E614540BD639701370C /* StatusBarMockView.swift in Sources */,
+				CAC9CB6EDD76DB0114739B85 /* SystemStatusItemCatalog.swift in Sources */,
 				4B8234ECB90F7A34B939B31B /* main.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -140,6 +140,8 @@ final class MenuBarExtrasScanner {
         let position: CGPoint
         let displayName: String
         let bundleIdentifier: String?
+        /// SF Symbol for curated system items; nil → use the app bundle icon.
+        let symbolName: String?
     }
 
     fileprivate struct ScanResult: Sendable {
@@ -374,7 +376,8 @@ final class MenuBarExtrasScanner {
         }
 
         self.cachedHidden = result.rawHidden.map { raw in
-            let icon = appsByPid[raw.pid].flatMap { self.icon(for: $0) }
+            let icon = self.symbolIcon(named: raw.symbolName)
+                ?? appsByPid[raw.pid].flatMap { self.icon(for: $0) }
             return HiddenStatusItem(
                 pid: raw.pid,
                 appName: raw.displayName,
@@ -462,8 +465,18 @@ final class MenuBarExtrasScanner {
 
                 let label = Self.readLabel(element: child)
                 let displayName: String
-                if let label, label != appName {
-                    displayName = "\(appName) — \(label)"
+                var symbolName: String?
+                if let entry = SystemStatusItemCatalog.entry(
+                    bundleIdentifier: app.bundleIdentifier,
+                    appName: appName,
+                    label: label
+                ) {
+                    displayName = entry.displayName
+                    symbolName = entry.symbolName
+                } else if let cleanLabel = SystemStatusItemCatalog.humanReadableLabel(label),
+                          cleanLabel != appName
+                {
+                    displayName = "\(appName) — \(cleanLabel)"
                 } else {
                     displayName = appName
                 }
@@ -473,7 +486,8 @@ final class MenuBarExtrasScanner {
                     element: SendableAXElement(value: child),
                     position: position,
                     displayName: displayName,
-                    bundleIdentifier: app.bundleIdentifier
+                    bundleIdentifier: app.bundleIdentifier,
+                    symbolName: symbolName
                 ))
             }
         }
@@ -606,6 +620,16 @@ final class MenuBarExtrasScanner {
 
             self.performAccessibilityPress(on: element)
         }
+    }
+
+    /// Template symbol icon for curated system items — renders in the menu's
+    /// text color like native menu item glyphs.
+    private func symbolIcon(named symbolName: String?) -> NSImage? {
+        guard let symbolName,
+              let symbol = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)
+        else { return nil }
+        let configuration = NSImage.SymbolConfiguration(pointSize: 12, weight: .regular)
+        return symbol.withSymbolConfiguration(configuration) ?? symbol
     }
 
     private func icon(for app: NSRunningApplication) -> NSImage? {
