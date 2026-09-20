@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HiddenBarIcons — Reclaim your Mac menu bar from the notch</title>
-<meta name="description" content="HiddenBarIcons is a tiny, free macOS menu-bar app that fixes the MacBook notch problem. Hide overflow icons behind the notch and reveal them with one click or ⌘⌥B. macOS 14+, Universal, auto-updating.">
+<meta name="description" content="HiddenBarIcons is a tiny, free macOS menu-bar app that fixes the MacBook notch problem. Hide overflow icons behind the notch and reveal them with one click or ⌘⌥B. macOS 14–26, Universal. Archived: macOS 27 fixes the notch natively.">
 <meta name="keywords" content="macOS menu bar, MacBook notch, hide menu bar icons, menu bar manager, notch fix, hidden bar, macOS utility, menu bar app">
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#6E56F0">
@@ -20,7 +20,7 @@
 <link rel="canonical" href="https://mekedron.github.io/HiddenBarIcons/">
 <link rel="icon" type="image/png" href="assets/appicon-256.png">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"HiddenBarIcons","applicationCategory":"UtilitiesApplication","operatingSystem":"macOS 14.0 or later","description":"A tiny macOS menu-bar app that hides the icons swallowed by the MacBook notch and reveals them with one click or the ⌘⌥B hotkey.","url":"https://mekedron.github.io/HiddenBarIcons/","downloadUrl":"https://github.com/mekedron/HiddenBarIcons/releases/latest","license":"https://opensource.org/licenses/MIT","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"HiddenBarIcons","applicationCategory":"UtilitiesApplication","operatingSystem":"macOS 14.0 – macOS 26","description":"A tiny macOS menu-bar app that hides the icons swallowed by the MacBook notch and reveals them with one click or the ⌘⌥B hotkey.","url":"https://mekedron.github.io/HiddenBarIcons/","downloadUrl":"https://github.com/mekedron/HiddenBarIcons/releases/latest","license":"https://opensource.org/licenses/MIT","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
 </script>
 <style>
   * { box-sizing: border-box; }
@@ -96,6 +96,21 @@
 
 <main style="position:relative; z-index:1;">
 
+  <!-- ============ ARCHIVED NOTICE ============ -->
+  <aside role="note" aria-label="Project status" style="position:relative; z-index:55; background:linear-gradient(180deg,#FFE7AE,#FFD26E); color:#3B2900; border-bottom:1px solid rgba(150,100,0,0.28);">
+    <div style="max-width:1120px; margin:0 auto; padding:12px 24px; display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:7px 13px; text-align:center; font-size:14.5px; line-height:1.5;">
+      <span style="display:inline-flex; align-items:center; gap:8px; font-weight:700; white-space:nowrap;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><rect x="2" y="3" width="20" height="5" rx="1.5"/><path d="M10 12h4"/></svg>
+        This project is archived
+      </span>
+      <span style="opacity:.86;">macOS&nbsp;27 added a native, clickable button for the icons the notch used to swallow — so HiddenBarIcons isn't needed any more, and no longer works on&nbsp;27.</span>
+      <a href="https://github.com/mekedron/HiddenBarIcons/issues/3" target="_blank" rel="noopener" style="display:inline-flex; align-items:center; gap:5px; white-space:nowrap; font-weight:600; color:#3B2900; text-decoration:underline; text-underline-offset:3px;">
+        Read why
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
+  </aside>
+
   <!-- ============ NAV ============ -->
   <nav style="position:sticky; top:0; z-index:50; backdrop-filter:blur(22px) saturate(180%); -webkit-backdrop-filter:blur(22px) saturate(180%); background:var(--glass-strong); border-bottom:1px solid var(--hairline);">
     <div style="max-width:1120px; margin:0 auto; padding:13px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px;">
@@ -140,7 +155,7 @@
           <span style="display:inline-flex; width:18px; height:18px; border-radius:50%; align-items:center; justify-content:center; background:linear-gradient(180deg, var(--accent), var(--accent-2));">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
           </span>
-          Free &amp; open source · macOS 14+
+          Archived · macOS 14–26
         </div>
         <h1 style="font-size:clamp(40px,6.2vw,74px); line-height:1.03; letter-spacing:-0.035em; font-weight:700; margin:0 0 22px; text-wrap:balance;">Reclaim your menu bar from the notch.</h1>
         <p style="font-size:clamp(17px,2.1vw,21px); line-height:1.5; color:var(--muted); margin:0 0 34px; max-width:30ch; text-wrap:pretty;">The MacBook notch swallows your overflow menu-bar icons. <span style="color:var(--text); font-weight:500;">HiddenBarIcons</span> hides them on purpose — and brings every one back with a single click or <kbd style="font:inherit; font-weight:600; padding:1px 7px; border-radius:7px; background:var(--code-bg); border:1px solid var(--border); white-space:nowrap;">⌘⌥B</kbd>.</p>
@@ -271,7 +286,7 @@
         <h2 style="font-size:clamp(30px,4.6vw,48px); line-height:1.06; letter-spacing:-0.03em; font-weight:700; margin:0 0 14px; text-wrap:balance;">Get HiddenBarIcons</h2>
         <p style="font-size:clamp(16px,2vw,18px); color:var(--muted); margin:0 0 16px; text-wrap:pretty;">Free, open source, and notarized. Download the disk image or install with Homebrew.</p>
         <p style="font-size:13.5px; color:var(--faint); margin:0 0 34px; display:flex; flex-wrap:wrap; gap:12px; justify-content:center;">
-          <span>macOS 14 Sonoma or later</span><span aria-hidden="true">·</span><span>Universal (Apple Silicon &amp; Intel)</span><span aria-hidden="true">·</span><span>MIT licensed</span>
+          <span>macOS 14 Sonoma – macOS 26 (not macOS 27)</span><span aria-hidden="true">·</span><span>Universal (Apple Silicon &amp; Intel)</span><span aria-hidden="true">·</span><span>MIT licensed</span>
         </p>
       </div>
 

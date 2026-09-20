@@ -1,5 +1,23 @@
 # HiddenBarIcons
 
+> [!IMPORTANT]
+> ## This project is archived — Apple fixed the notch
+>
+> **macOS 27 ships a native overflow button.** When your menu bar runs out of room,
+> the system now collapses the extra icons behind a `»` chevron that sits *next to*
+> the notch — and you can actually click it. Reaching the icons the notch used to
+> swallow was the one and only reason HiddenBarIcons existed, so the app has nothing
+> left to do.
+>
+> On top of that, **HiddenBarIcons itself no longer works on macOS 27**
+> ([#3](https://github.com/mekedron/HiddenBarIcons/issues/3)). It still works on
+> macOS 14–26 and the [latest release](https://github.com/mekedron/HiddenBarIcons/releases/latest)
+> stays downloadable, but there will be no further fixes, features or releases.
+> Thanks to everyone who used it. 🎉
+>
+> <img src="assets/macos-27-collapsed.png" width="440" alt="macOS 27 menu bar collapsed: a clickable chevron sits right next to the notch">
+> <img src="assets/macos-27-expanded.png" width="440" alt="macOS 27 menu bar expanded by the native button, showing every icon that was hidden">
+
 A tiny macOS menu-bar app that fixes the **notch problem**: when your menu bar
 overflows, macOS hides the icons that would fall under the MacBook notch and you
 can no longer reach them. HiddenBarIcons adds (ironically) one more menu-bar icon
@@ -9,7 +27,8 @@ can no longer reach them. HiddenBarIcons adds (ironically) one more menu-bar ico
   <img src="assets/menu.png" width="300" alt="HiddenBarIcons menu listing the apps whose icons are hidden under the notch">
 </p>
 
-> Status-bar-only app (no Dock icon). macOS 14 (Sonoma) and later. Universal
+> Status-bar-only app (no Dock icon). macOS 14 (Sonoma) through macOS 26 — see
+> the archive notice above for macOS 27. Universal
 > (Apple Silicon + Intel). Auto-updates via [Sparkle](https://sparkle-project.org).
 
 ## Install
